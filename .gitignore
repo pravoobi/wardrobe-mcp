@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+data/
+renders/
+!renders/.gitkeep
+*.sqlite
+*.sqlite-journal
+*.db
+coverage/
+.DS_Store

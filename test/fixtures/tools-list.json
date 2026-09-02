@@ -1,0 +1,100 @@
+[
+  {
+    "name": "add_to_wardrobe",
+    "inputSchema": [
+      "garmentId"
+    ],
+    "annotations": {
+      "title": "add_to_wardrobe"
+    }
+  },
+  {
+    "name": "compare_looks",
+    "inputSchema": [
+      "lookIds"
+    ],
+    "annotations": {
+      "title": "compare_looks",
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "list_looks",
+    "inputSchema": [],
+    "annotations": {
+      "title": "list_looks",
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "list_wardrobe",
+    "inputSchema": [
+      "category",
+      "color",
+      "occasion"
+    ],
+    "annotations": {
+      "title": "list_wardrobe",
+      "readOnlyHint": true
+    }
+  },
+  {
+    "name": "preview_look",
+    "inputSchema": [
+      "garmentId",
+      "photoId"
+    ],
+    "annotations": {
+      "title": "preview_look"
+    }
+  },
+  {
+    "name": "record_reaction",
+    "inputSchema": [
+      "lookId",
+      "note",
+      "reaction"
+    ],
+    "annotations": {
+      "title": "record_reaction"
+    }
+  },
+  {
+    "name": "save_look",
+    "inputSchema": [
+      "garmentId",
+      "label"
+    ],
+    "annotations": {
+      "title": "save_look"
+    }
+  },
+  {
+    "name": "search_catalog",
+    "inputSchema": [
+      "category",
+      "color",
+      "maxPrice",
+      "occasion",
+      "query"
+    ],
+    "annotations": {
+      "title": "search_catalog",
+      "readOnlyHint": true,
+      "idempotentHint": true
+    }
+  },
+  {
+    "name": "suggest_outfits",
+    "inputSchema": [
+      "budget",
+      "color",
+      "occasion",
+      "prefer"
+    ],
+    "annotations": {
+      "title": "suggest_outfits",
+      "readOnlyHint": true
+    }
+  }
+]

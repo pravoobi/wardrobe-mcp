@@ -1,0 +1,112 @@
+{
+  "_note": "Metadata-only copy of try-on/src/garments/catalog.json. Try-on anchors are intentionally stripped. Re-pull with `npm run sync-catalog`.",
+  "source": "https://github.com/pravoobi/try-on/blob/main/src/garments/catalog.json",
+  "tryonAppVersion": "dev",
+  "usdPerInr": 0.012,
+  "garments": [
+    {
+      "id": "kurta-magenta-bandhani",
+      "category": "kurta-set",
+      "meta": {
+        "name": "Magenta Bandhani Kurta Set",
+        "color": "magenta",
+        "occasion": ["sangeet", "mehendi", "festive"],
+        "price": 6499,
+        "sleeves": "full",
+        "length": "knee",
+        "productUrl": "https://example.com/p/kurta-magenta-bandhani"
+      }
+    },
+    {
+      "id": "kurta-navy-silk",
+      "category": "kurta-set",
+      "meta": {
+        "name": "Navy Raw-Silk Kurta Set",
+        "color": "navy",
+        "occasion": ["sangeet", "wedding", "reception"],
+        "price": 7499,
+        "sleeves": "full",
+        "length": "knee",
+        "productUrl": "https://example.com/p/kurta-navy-silk"
+      }
+    },
+    {
+      "id": "sherwani-ivory-gold",
+      "category": "sherwani",
+      "meta": {
+        "name": "Ivory & Gold Embroidered Sherwani",
+        "color": "ivory",
+        "occasion": ["wedding", "reception"],
+        "price": 18999,
+        "sleeves": "full",
+        "length": "calf",
+        "productUrl": "https://example.com/p/sherwani-ivory-gold"
+      }
+    },
+    {
+      "id": "nehru-jacket-emerald",
+      "category": "nehru-jacket",
+      "meta": {
+        "name": "Emerald Brocade Nehru Jacket",
+        "color": "green",
+        "occasion": ["sangeet", "festive", "party"],
+        "price": 3299,
+        "sleeves": "sleeveless",
+        "length": "hip",
+        "productUrl": "https://example.com/p/nehru-jacket-emerald"
+      }
+    },
+    {
+      "id": "kurta-white-chikankari",
+      "category": "kurta-set",
+      "meta": {
+        "name": "White Chikankari Kurta Set",
+        "color": "white",
+        "occasion": ["mehendi", "haldi", "festive", "casual"],
+        "price": 4299,
+        "sleeves": "full",
+        "length": "knee",
+        "productUrl": "https://example.com/p/kurta-white-chikankari"
+      }
+    },
+    {
+      "id": "kurta-mustard-cotton",
+      "category": "kurta-set",
+      "meta": {
+        "name": "Mustard Cotton Kurta Set",
+        "color": "yellow",
+        "occasion": ["haldi", "festive", "casual"],
+        "price": 2799,
+        "sleeves": "half",
+        "length": "knee",
+        "productUrl": "https://example.com/p/kurta-mustard-cotton"
+      }
+    },
+    {
+      "id": "bandhgala-charcoal",
+      "category": "bandhgala",
+      "meta": {
+        "name": "Charcoal Wool Bandhgala Suit",
+        "color": "grey",
+        "occasion": ["reception", "party", "formal"],
+        "price": 12499,
+        "sleeves": "full",
+        "length": "hip",
+        "productUrl": "https://example.com/p/bandhgala-charcoal"
+      }
+    },
+    {
+      "id": "kurta-maroon-velvet",
+      "category": "kurta-set",
+      "meta": {
+        "name": "Maroon Velvet Kurta Set",
+        "color": "maroon",
+        "occasion": ["sangeet", "wedding", "reception", "festive"],
+        "price": 7999,
+        "sleeves": "full",
+        "length": "knee",
+        "productUrl": "https://example.com/p/kurta-maroon-velvet"
+      }
+    }
+  ]
+}
