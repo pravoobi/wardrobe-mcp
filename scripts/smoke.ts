@@ -45,6 +45,9 @@ async function main(): Promise<void> {
   assert(as.code_challenge_methods_supported?.includes("S256"), "AS metadata must advertise S256");
   console.log("✓ discovery documents present (resource + S256)");
 
+  // --- OAuth 2.1: authorize -> consent -> token -> use ---
+  await oauthLoop();
+
   // --- cold seed: demo user + whole-catalog pre-render ---
   const rendered = await seedDemo();
   console.log(`✓ cold seed: ${rendered} looks pre-rendered (mode ${process.env.RENDER_MODE})`);
@@ -124,6 +127,62 @@ async function main(): Promise<void> {
   await client.close();
   server.close();
   console.log("\nSMOKE OK");
+}
+
+async function oauthLoop(): Promise<void> {
+  const { pkceS256 } = await import("../src/auth/crypto.js");
+  const { randomBytes } = await import("node:crypto");
+  const verifier = randomBytes(48).toString("base64url");
+  const q = new URLSearchParams({
+    response_type: "code",
+    client_id: "mcp-inspector-local",
+    redirect_uri: "http://localhost",
+    scope: "wardrobe:read wardrobe:write",
+    state: "smoke",
+    code_challenge: pkceS256(verifier),
+    code_challenge_method: "S256",
+    resource: process.env.MCP_CANONICAL_URL!,
+  });
+  const page = await fetch(`${BASE}/oauth/authorize?${q}`);
+  assert(page.status === 200 && (await page.text()).includes("wants to connect"), "authorize page");
+
+  q.set("userId", "praveen");
+  const consent = await fetch(`${BASE}/link`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: q,
+    redirect: "manual",
+  });
+  assert(consent.status === 302, "consent should redirect");
+  const code = new URL(consent.headers.get("location")!).searchParams.get("code")!;
+
+  const tok = (await (
+    await fetch(`${BASE}/oauth/token`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: "http://localhost",
+        client_id: "mcp-inspector-local",
+        resource: process.env.MCP_CANONICAL_URL!,
+      }),
+    })
+  ).json()) as { access_token: string; refresh_token: string };
+  assert(tok.access_token?.startsWith("wat_"), "access token issued");
+
+  const mcp = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      authorization: `Bearer ${tok.access_token}`,
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+  });
+  assert(mcp.status === 200, `OAuth access token rejected by /mcp (${mcp.status})`);
+  console.log("✓ OAuth 2.1 PKCE loop -> access token works on /mcp");
 }
 
 async function seedDemo(): Promise<number> {

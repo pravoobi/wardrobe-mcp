@@ -7,7 +7,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 
 import { config, PROTOCOL_MIN } from "./config.js";
 import { mountDiscovery } from "./auth/prm.js";
-import { bearerAuth } from "./auth/bearer.js";
+import { makeBearerAuth } from "./auth/bearer.js";
+import { mountOAuth } from "./auth/oauthServer.js";
 import { getStore } from "./store/index.js";
 import { RenderQueue } from "./render/queue.js";
 import { createMcpServer } from "./mcp/server.js";
@@ -15,12 +16,14 @@ import type { ToolContext } from "./mcp/context.js";
 
 const store = getStore();
 const render = new RenderQueue(store);
+const bearerAuth = makeBearerAuth(store);
 
 export const app = new Hono();
 
 app.get("/healthz", (c) => c.json({ ok: true, protocolMin: PROTOCOL_MIN }));
 
 mountDiscovery(app);
+mountOAuth(app, store);
 
 // Rendered looks (dev). Prod serves these from CloudFront.
 app.use("/renders/*", serveStatic({ root: config.localRenderDir, rewriteRequestPath: (p) => p.replace(/^\/renders/, "") }));

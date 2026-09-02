@@ -10,6 +10,7 @@ function env(key: string, fallback?: string): string {
 }
 
 const canonical = env("MCP_CANONICAL_URL", "http://localhost:3000/mcp").replace(/\/$/, "");
+const isProd = process.env.NODE_ENV === "production";
 
 export const config = {
   /** Canonical MCP URL — the OAuth `resource` value. No trailing slash. */
@@ -17,6 +18,7 @@ export const config = {
   issuer: new URL(canonical).origin,
   port: Number(env("PORT", "3000")),
   host: env("HOST", "0.0.0.0"),
+  isProd,
   store: env("STORE", "sqlite") as "sqlite" | "dynamodb",
   sqlitePath: env("SQLITE_PATH", "./data/wardrobe.sqlite"),
   storage: env("STORAGE", "local") as "local" | "s3",
@@ -29,6 +31,21 @@ export const config = {
   tryonAppUrl: env("TRYON_APP_URL", "https://pravoobi.github.io/try-on/"),
   tryonAppVersion: env("TRYON_APP_VERSION", "dev"),
   awsRegion: env("AWS_REGION", "us-east-1"),
+  dynamoTable: env("DYNAMODB_TABLE", "wardrobe"),
+  dynamoEndpoint: process.env.DYNAMODB_ENDPOINT || undefined,
+  s3Bucket: process.env.S3_BUCKET || undefined,
+  cloudfrontBaseUrl: (process.env.CLOUDFRONT_BASE_URL ?? "").replace(/\/$/, "") || undefined,
+  bedrockModelId: env("BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0"),
+
+  /** `dev_<userId>` bearer tokens — a local convenience, never in production. */
+  allowDevTokens: env("ALLOW_DEV_TOKENS", isProd ? "false" : "true") === "true",
+
+  oauth: {
+    authCodeTtlSeconds: 60,
+    accessTokenTtlSeconds: 15 * 60,
+    refreshTokenTtlSeconds: 30 * 24 * 60 * 60,
+    scopesSupported: ["wardrobe:read", "wardrobe:write"] as const,
+  },
 } as const;
 
 export const PROTOCOL_MIN = "2025-11-25";

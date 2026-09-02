@@ -8,7 +8,9 @@ import type { DatabaseSync as DatabaseSyncClass } from "node:sqlite";
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 import type { Store } from "./Store.js";
 import type {
+  AuthCode,
   Look,
+  OAuthToken,
   Photo,
   Reaction,
   RenderJob,
@@ -84,6 +86,26 @@ export class SqliteStore implements Store {
         url TEXT,
         error TEXT,
         updatedAt TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS auth_codes (
+        codeHash TEXT PRIMARY KEY,
+        clientId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        redirectUri TEXT NOT NULL,
+        codeChallenge TEXT NOT NULL,
+        resource TEXT NOT NULL,
+        expiresAt INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS oauth_tokens (
+        tokenHash TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        clientId TEXT NOT NULL,
+        resource TEXT NOT NULL,
+        expiresAt INTEGER NOT NULL,
+        refreshHash TEXT
       );
     `);
   }
@@ -289,6 +311,89 @@ export class SqliteStore implements Store {
          WHERE key = ?`,
       )
       .run(status, patch.url ?? null, patch.error ?? null, new Date().toISOString(), key);
+  }
+
+  async putAuthCode(code: AuthCode): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO auth_codes
+           (codeHash, clientId, userId, scopes, redirectUri, codeChallenge, resource, expiresAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        code.codeHash,
+        code.clientId,
+        code.userId,
+        JSON.stringify(code.scopes),
+        code.redirectUri,
+        code.codeChallenge,
+        code.resource,
+        code.expiresAt,
+      );
+  }
+
+  async takeAuthCode(codeHash: string): Promise<AuthCode | undefined> {
+    const row = this.db.prepare("SELECT * FROM auth_codes WHERE codeHash = ?").get(codeHash) as
+      | Record<string, unknown>
+      | undefined;
+    this.db.prepare("DELETE FROM auth_codes WHERE codeHash = ?").run(codeHash);
+    if (!row) return undefined;
+    return {
+      codeHash: String(row.codeHash),
+      clientId: String(row.clientId),
+      userId: String(row.userId),
+      scopes: JSON.parse(String(row.scopes)) as string[],
+      redirectUri: String(row.redirectUri),
+      codeChallenge: String(row.codeChallenge),
+      resource: String(row.resource),
+      expiresAt: Number(row.expiresAt),
+    };
+  }
+
+  async putToken(token: OAuthToken): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO oauth_tokens
+           (tokenHash, kind, userId, scopes, clientId, resource, expiresAt, refreshHash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        token.tokenHash,
+        token.kind,
+        token.userId,
+        JSON.stringify(token.scopes),
+        token.clientId,
+        token.resource,
+        token.expiresAt,
+        token.refreshHash ?? null,
+      );
+  }
+
+  async getToken(tokenHash: string): Promise<OAuthToken | undefined> {
+    const row = this.db.prepare("SELECT * FROM oauth_tokens WHERE tokenHash = ?").get(tokenHash) as
+      | Record<string, unknown>
+      | undefined;
+    if (!row) return undefined;
+    return {
+      tokenHash: String(row.tokenHash),
+      kind: row.kind === "refresh" ? "refresh" : "access",
+      userId: String(row.userId),
+      scopes: JSON.parse(String(row.scopes)) as string[],
+      clientId: String(row.clientId),
+      resource: String(row.resource),
+      expiresAt: Number(row.expiresAt),
+      refreshHash: row.refreshHash ? String(row.refreshHash) : undefined,
+    };
+  }
+
+  async deleteToken(tokenHash: string): Promise<void> {
+    this.db.prepare("DELETE FROM oauth_tokens WHERE tokenHash = ?").run(tokenHash);
+  }
+
+  async deleteTokensByRefresh(refreshHash: string): Promise<void> {
+    this.db
+      .prepare("DELETE FROM oauth_tokens WHERE tokenHash = ? OR refreshHash = ?")
+      .run(refreshHash, refreshHash);
   }
 
   close(): void {

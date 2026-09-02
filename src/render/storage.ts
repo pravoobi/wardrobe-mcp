@@ -2,6 +2,7 @@ import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { config } from "../config.js";
+import { S3Storage } from "./s3Storage.js";
 
 /** Where rendered looks live. Local dev writes to `./renders` and serves it
  * statically; prod puts objects in S3 behind CloudFront. Both expose the same
@@ -84,12 +85,7 @@ let singleton: RenderStorage | undefined;
 
 export function getStorage(): RenderStorage {
   if (singleton) return singleton;
-  if (config.storage === "s3") {
-    // Phase 3: @aws-sdk/client-s3 PutObject + CloudFront URL. Falls back to
-    // local so nothing breaks before the AWS wiring lands.
-    console.warn("STORAGE=s3 not implemented yet — using local disk.");
-  }
-  singleton = new LocalStorage();
+  singleton = config.storage === "s3" ? new S3Storage() : new LocalStorage();
   return singleton;
 }
 

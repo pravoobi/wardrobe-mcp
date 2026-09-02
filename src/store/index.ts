@@ -1,6 +1,7 @@
 import { config } from "../config.js";
 import type { Store } from "./Store.js";
 import { SqliteStore } from "./sqlite.js";
+import { DynamoDBStore } from "./dynamodb.js";
 
 let singleton: Store | undefined;
 
@@ -11,7 +12,8 @@ export function getStore(): Store {
       singleton = new SqliteStore(config.sqlitePath);
       break;
     case "dynamodb":
-      throw new Error("DynamoDB store lands in Phase 3. Set STORE=sqlite for now.");
+      singleton = new DynamoDBStore();
+      break;
     default:
       throw new Error(`Unknown STORE: ${config.store as string}`);
   }

@@ -69,6 +69,35 @@ export interface Reaction {
   at: string;
 }
 
+/** OAuth 2.1 authorization code — single-use, ~60 s TTL, PKCE-bound. */
+export interface AuthCode {
+  /** sha256 of the code value. The plaintext is never stored. */
+  codeHash: string;
+  clientId: string;
+  userId: string;
+  scopes: string[];
+  redirectUri: string;
+  codeChallenge: string;
+  /** RFC 8707 — must match the canonical MCP URL. */
+  resource: string;
+  expiresAt: number;
+}
+
+export type OAuthTokenKind = "access" | "refresh";
+
+/** Opaque bearer/refresh token. Only the sha256 is persisted. */
+export interface OAuthToken {
+  tokenHash: string;
+  kind: OAuthTokenKind;
+  userId: string;
+  scopes: string[];
+  clientId: string;
+  resource: string;
+  expiresAt: number;
+  /** Links an access token to the refresh token that minted it, for rotation. */
+  refreshHash?: string;
+}
+
 export type RenderStatus = "queued" | "running" | "done" | "failed";
 
 export interface RenderJob {

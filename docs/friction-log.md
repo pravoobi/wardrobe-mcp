@@ -94,3 +94,33 @@ Format per entry:
   `src/render/worker.ts`.
 - **Suggestion** — The WebMCP explainer should show the agent-side call explicitly, and a
   symmetrical `document.modelContext.callTool(name, args)` helper would remove the guesswork.
+
+## 6. `NODE_ENV=production` in the Playwright base image silently breaks `npm run build`
+
+- **Task** — Multi-stage `Dockerfile` from `mcr.microsoft.com/playwright:v1.62.1-noble`.
+- **Steps** — Build stage: `COPY package*.json`, `RUN npm ci`, `RUN npm run build`.
+- **Expected vs actual** — Expected `npm ci` to install everything for the build stage.
+  Actual: the Playwright image sets `ENV NODE_ENV=production`, so `npm ci` omitted
+  `devDependencies` and the build died with `sh: 1: tsc: not found` — no warning that
+  packages were skipped.
+- **Severity** — nice-to-have (once you know, `--include=dev` fixes it).
+- **Workaround** — `RUN npm ci --include=dev` in the build stage; keep `--omit=dev` in the
+  deps stage.
+- **Suggestion** — `npm ci` should print a one-line notice when `NODE_ENV=production` causes
+  it to skip devDependencies — this is a very common Docker footgun.
+
+## 7. Alexa+ `401`-without-`WWW-Authenticate` fights every default
+
+- **Task** — Return `401` from `/mcp` with a JSON body and **no** `WWW-Authenticate`, per
+  Amazon's discovery expectation.
+- **Steps** — Wrote the Bearer check by hand in Hono rather than using SDK/middleware auth.
+- **Expected vs actual** — The MCP spec (and `mcp-sdk` server auth middleware, and every
+  OAuth resource-server example) *requires* `WWW-Authenticate` on a `401` pointing at the
+  PRM. Amazon's Alexa+ quickstart says the opposite: omit it. Following the spec fails
+  Amazon's discovery.
+- **Severity** — important (silent — the add-on just never links).
+- **Workaround** — Hand-rolled middleware that returns bare `{ error, error_description }`
+  JSON; a test asserts the header's *absence* so it can't regress.
+- **Suggestion** — If Amazon needs a non-standard `401`, the quickstart should call this out
+  in a red box with a snippet — and ideally Amazon's client should just follow the spec and
+  read `WWW-Authenticate` / the well-known PRM path like everyone else.

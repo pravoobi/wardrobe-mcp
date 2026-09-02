@@ -1,5 +1,7 @@
 import type {
+  AuthCode,
   Look,
+  OAuthToken,
   Photo,
   Reaction,
   ReactionKind,
@@ -41,6 +43,17 @@ export interface Store {
     status: RenderStatus,
     patch?: { url?: string; error?: string },
   ): Promise<void>;
+
+  // --- OAuth 2.1 authorization server state ---
+  putAuthCode(code: AuthCode): Promise<void>;
+  /** Atomically fetch-and-delete: an authorization code is single-use. */
+  takeAuthCode(codeHash: string): Promise<AuthCode | undefined>;
+
+  putToken(token: OAuthToken): Promise<void>;
+  getToken(tokenHash: string): Promise<OAuthToken | undefined>;
+  deleteToken(tokenHash: string): Promise<void>;
+  /** Revoke an access token and its sibling on refresh rotation / logout. */
+  deleteTokensByRefresh(refreshHash: string): Promise<void>;
 }
 
 export type { ReactionKind };

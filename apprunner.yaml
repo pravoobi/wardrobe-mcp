@@ -1,0 +1,31 @@
+# AWS App Runner — image-based service config (deployed from ECR).
+# Region: us-east-1 (Alexa+ traffic is US; keeps the round trip < 500 ms).
+version: 1.0
+runtime: docker
+build:
+  # Image is built + pushed to ECR by CI / `docs/aws.md`; App Runner just runs it.
+  commands: {}
+run:
+  command: node dist/server.js
+  network:
+    port: 3000
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: STORE
+      value: dynamodb
+    - name: STORAGE
+      value: s3
+    - name: TAGGING_PROVIDER
+      value: bedrock
+    - name: AWS_REGION
+      value: us-east-1
+    - name: ALLOW_DEV_TOKENS
+      value: "false"
+    # Set per-environment (App Runner console / IaC), not committed:
+    #   MCP_CANONICAL_URL   https://<custom-domain>/mcp   (exact, no trailing slash)
+    #   DYNAMODB_TABLE      wardrobe
+    #   S3_BUCKET           wardrobe-looks-<acct>
+    #   CLOUDFRONT_BASE_URL https://looks.<domain>
+    #   BEDROCK_MODEL_ID    amazon.nova-lite-v1:0
+    #   TRYON_APP_URL / TRYON_APP_VERSION

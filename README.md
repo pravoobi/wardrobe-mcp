@@ -78,37 +78,55 @@ app (cached under `data/assets/`). Render one look to eyeball it:
 `tsx scripts/render-one.ts dress-magenta-wrap-01 photo-01` (add `--browser` for the real
 bridge).
 
-Auth in dev: send `Authorization: Bearer dev_praveen` (any `dev_<userId>` works; full
-OAuth 2.1 lands in Phase 3). Point MCP Inspector at `http://localhost:3000/mcp`.
+## Auth (OAuth 2.1)
 
-Expose it for Alexa+:
+A minimal OAuth 2.1 authorization server runs in the same process — exactly what Alexa+
+expects, nothing it rejects:
 
-```bash
-cloudflared tunnel --url http://localhost:3000
-```
+- authorization-code + PKCE **S256 only**; RFC 8707 `resource` mandatory, must equal the
+  canonical MCP URL; public pre-registered clients (no Dynamic Client Registration)
+- `GET /.well-known/oauth-authorization-server` + `/.well-known/oauth-protected-resource`
+- `GET /oauth/authorize` → `/link` demo consent → `POST /oauth/token` (15-min access,
+  30-day refresh, rotating; all persisted hashed)
+- unauthenticated `POST /mcp` → **`401` with no `WWW-Authenticate`** (Amazon's quirk)
+
+Dev shortcut: `Authorization: Bearer dev_praveen` works when `ALLOW_DEV_TOKENS=true`
+(auto-off when `NODE_ENV=production`). Point MCP Inspector at `http://localhost:3000/mcp`
+and it runs the full PKCE dance.
+
+Expose it for Alexa+: `cloudflared tunnel --url http://localhost:3000`
 
 ## Verify
 
 ```bash
 npm run typecheck
-npm test          # unit + auth + e2e MCP client
-npm run smoke     # boots the server, runs the sangeet flow over a real MCP client
+npm test            # unit + OAuth + Store contract + e2e MCP client  (59 tests)
+npm run smoke       # boots the server, runs OAuth + the full sangeet flow
+npm run test:dynamo # Store contract against DynamoDB Local (needs Docker)
 ```
 
 `npm run smoke` asserts: unauthenticated `POST /mcp` → `401` **without** `WWW-Authenticate`;
-discovery documents advertise `S256`; negotiated protocol ≥ `2025-11-25`; `suggest_outfits`
-answers in < 500 ms.
+discovery advertises `S256`; a full PKCE loop yields a token that works on `/mcp`;
+negotiated protocol ≥ `2025-11-25`; every image tool a cache hit < 100 ms.
 
 ## Status
 
 - [x] **Phase 1** — skeleton MCP over Streamable HTTP, catalog + wardrobe + suggest tools, SQLite store, smoke flow.
-- [x] **Phase 2** — renderer bridge (`local` sharp compositor + opt-in `browser` bridge to the try-on app's WebMCP tools), `sharp` compare sheets, cache + queue, whole-catalog pre-render on seed, inline image blocks. Catalog synced from `pravoobi/try-on`. Tool schemas frozen (`test/fixtures/tools-list.json`).
-- [ ] **Phase 3** — OAuth 2.1 AS (PKCE, `resource`), DynamoDB + S3/CloudFront, Bedrock tagging, AWS App Runner.
+- [x] **Phase 2** — renderer bridge (`local` sharp compositor + opt-in `browser` bridge to the try-on app's WebMCP tools), `sharp` compare sheets, cache + queue, whole-catalog pre-render on seed, inline image blocks. Catalog synced from `pravoobi/try-on`. Tool schemas frozen.
+- [x] **Phase 3** — OAuth 2.1 AS (PKCE S256, `resource`, refresh rotation, every rejection-path tested); DynamoDB `Store` (single-table, parity suite vs SQLite, verified against DynamoDB Local); S3 + CloudFront render storage; Bedrock garment tagger (feature-flagged); `Dockerfile` (Playwright base) + `apprunner.yaml`.
+- [ ] **Phase 3 (ops)** — push image to ECR, stand up the App Runner service, measure p95 from us-east-1.
 - [ ] **Phase 4** — Alexa+ add-on (`alexa-ai deploy`).
 
 The full sangeet flow (`npm run smoke`) runs end-to-end from a cold seed: `suggest_outfits`
 → `preview_look` → `save_look` → `compare_looks` → `record_reaction`, every image tool a
 cache hit under 100 ms.
+
+## Deploy to AWS
+
+`STORE=dynamodb STORAGE=s3 TAGGING_PROVIDER=bedrock` in `us-east-1`. Container from the
+Playwright base image (`Dockerfile`), run on App Runner (`apprunner.yaml`) with
+`min instances = 1`. Full steps + the single-table schema + IAM notes in
+[`docs/aws.md`](docs/aws.md). One-time table setup: `npm run aws:table`.
 
 See [`CLAUDE.md`](CLAUDE.md) for the full plan and [`docs/`](docs/) for the friction log,
 product feedback, and submission notes.
