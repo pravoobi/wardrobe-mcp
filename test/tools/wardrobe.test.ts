@@ -13,17 +13,17 @@ describe("list_wardrobe / add_to_wardrobe", () => {
 
   it("adds a catalog item and lists it", async () => {
     const { ctx } = await makeHarness();
-    await addToWardrobe({ garmentId: "kurta-navy-silk" }, ctx);
+    await addToWardrobe({ garmentId: "dress-navy-floral-01" }, ctx);
     const res = await listWardrobe({}, ctx);
     const sc = res.structuredContent as { count: number; items: { garmentId: string }[] };
     expect(sc.count).toBe(1);
-    expect(sc.items[0]?.garmentId).toBe("kurta-navy-silk");
+    expect(sc.items[0]?.garmentId).toBe("dress-navy-floral-01");
   });
 
   it("is idempotent on repeated add", async () => {
     const { ctx } = await makeHarness();
-    await addToWardrobe({ garmentId: "kurta-navy-silk" }, ctx);
-    await addToWardrobe({ garmentId: "kurta-navy-silk" }, ctx);
+    await addToWardrobe({ garmentId: "dress-navy-floral-01" }, ctx);
+    await addToWardrobe({ garmentId: "dress-navy-floral-01" }, ctx);
     const res = await listWardrobe({}, ctx);
     expect((res.structuredContent as { count: number }).count).toBe(1);
   });
@@ -36,15 +36,15 @@ describe("list_wardrobe / add_to_wardrobe", () => {
 
   it("filters by occasion", async () => {
     const { ctx } = await makeHarness();
-    await addToWardrobe({ garmentId: "kurta-navy-silk" }, ctx); // sangeet/wedding/reception
-    await addToWardrobe({ garmentId: "kurta-mustard-cotton" }, ctx); // haldi/festive/casual
-    const res = await listWardrobe({ occasion: "haldi" }, ctx);
+    await addToWardrobe({ garmentId: "dress-navy-floral-01" }, ctx); // party/reception/brunch/date-night
+    await addToWardrobe({ garmentId: "kurti-cream-embroidered-01" }, ctx); // festive/mehendi/daytime/office
+    const res = await listWardrobe({ occasion: "mehendi" }, ctx);
     const sc = res.structuredContent as { items: { garmentId: string }[] };
-    expect(sc.items.map((i) => i.garmentId)).toEqual(["kurta-mustard-cotton"]);
+    expect(sc.items.map((i) => i.garmentId)).toEqual(["kurti-cream-embroidered-01"]);
   });
 
   it("requires wardrobe:write scope", async () => {
     const { ctx } = await makeHarness({ scopes: ["wardrobe:read"] });
-    await expect(addToWardrobe({ garmentId: "kurta-navy-silk" }, ctx)).rejects.toThrow(/permission/i);
+    await expect(addToWardrobe({ garmentId: "dress-navy-floral-01" }, ctx)).rejects.toThrow(/permission/i);
   });
 });

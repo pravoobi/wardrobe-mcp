@@ -39,6 +39,17 @@ export async function saveLook(input: SaveLookInput, ctx: ToolContext): Promise<
   });
 
   const all = await ctx.store.listLooks(ctx.user.userId);
+
+  // Warm the compare sheet for the two most recent looks so "compare them" is
+  // an instant cache hit. Fire-and-forget — never blocks the response.
+  if (all.length >= 2) {
+    const [a, b] = all.slice(-2);
+    ctx.render.warmCompare([
+      { renderKey: a!.renderKey, label: a!.label ?? a!.id },
+      { renderKey: b!.renderKey, label: b!.label ?? b!.id },
+    ]);
+  }
+
   return toolResult({
     text: `Saved as ${look.label ?? look.id}${garment ? ` — ${garment.meta.name}` : ""}. You have ${all.length} saved look${all.length === 1 ? "" : "s"}.`,
     structuredContent: {

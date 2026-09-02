@@ -5,7 +5,7 @@ import { getGarment } from "../../catalog/catalog.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export const addToWardrobeSchema = {
-  garmentId: z.string().describe("The catalog garment id to add, e.g. 'kurta-navy-silk'."),
+  garmentId: z.string().describe("The catalog garment id to add, e.g. 'dress-navy-floral-01'."),
 };
 
 const Input = z.object(addToWardrobeSchema);

@@ -48,5 +48,6 @@ export async function previewLook(
   return toolResult({
     text: `Here's ${name} on you. How does it look? Only you can judge the fit.`,
     structuredContent: { status: "done", lookPreviewUrl: result.url, garmentId: input.garmentId },
+    imageBase64: result.webp?.toString("base64"),
   });
 }

@@ -4,7 +4,7 @@ import { toolResult } from "../responses.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export const listWardrobeSchema = {
-  category: z.string().optional().describe("Filter by garment category, e.g. 'kurta-set'."),
+  category: z.string().optional().describe("Filter by garment category, e.g. 'dress', 'kurti', 'lehenga-choli'."),
   occasion: z.string().optional().describe("Filter by occasion, e.g. 'sangeet'."),
   color: z.string().optional().describe("Filter by colour, e.g. 'navy'."),
 };

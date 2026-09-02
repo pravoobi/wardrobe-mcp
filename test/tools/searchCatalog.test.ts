@@ -11,17 +11,18 @@ describe("searchCatalog", () => {
   it("respects maxPrice", () => {
     const hits = searchCatalog({ occasion: "sangeet", maxPrice: 7000 });
     expect(hits.every((g) => (g.meta.price ?? 0) <= 7000)).toBe(true);
-    expect(hits.some((g) => g.id === "kurta-navy-silk")).toBe(false); // 7499
+    expect(hits.some((g) => g.id === "lehenga-pink")).toBe(false); // sangeet but ₹12,500
   });
 
-  it("ranks exact colour match above text-only match", () => {
+  it("ranks exact colour match first", () => {
     const hits = searchCatalog({ occasion: "sangeet", color: "magenta" });
     expect(hits[0]?.meta.color).toBe("magenta");
   });
 
   it("is deterministic", () => {
-    const a = searchCatalog({ query: "kurta", occasion: "festive" }).map((g) => g.id);
-    const b = searchCatalog({ query: "kurta", occasion: "festive" }).map((g) => g.id);
+    const a = searchCatalog({ query: "floral", occasion: "brunch" }).map((g) => g.id);
+    const b = searchCatalog({ query: "floral", occasion: "brunch" }).map((g) => g.id);
     expect(a).toEqual(b);
+    expect(a.length).toBeGreaterThan(0);
   });
 });

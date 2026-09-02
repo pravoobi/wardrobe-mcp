@@ -30,10 +30,23 @@ Builder** and **Open Source** mini challenges. MIT licensed.
 
 **The renderer bridge:** the try-on pipeline is browser-only (LiteRT.js, WebGPU/Wasm). We
 don't port it. The render worker launches headless Chromium, opens the deployed try-on app,
-and calls the page's **own WebMCP tools** (`apply_tryon`, `save_look`, `compare_looks`) via
-`document.modelContext.executeTool`, then pulls the snapshot PNG. One tool contract, two
-transports. Rendering is never in the request path — `preview_look` / `compare_looks` are
-cache reads; a miss enqueues and returns `{ status: "rendering", retryAfterSeconds }`.
+and calls the page's **own WebMCP tools** via
+`document.modelContext.tools.get("apply_tryon").execute(...)`, then snapshots the result
+canvas. One tool contract, two transports. Rendering is never in the request path —
+`preview_look` / `compare_looks` are cache reads; a miss enqueues and returns
+`{ status: "rendering" | "composing", retryAfterSeconds }`.
+
+Two render modes (`RENDER_MODE`):
+
+| mode | what it does | when |
+|---|---|---|
+| `local` *(default)* | composes a look card with `sharp` from the flat garment PNG + the customer photo — fast, offline, deterministic | dev, tests, demo |
+| `browser` | the real bridge above — drives the deployed try-on app in headless Chromium | GPU-capable host / `xvfb` |
+| `stub` | solid-colour placeholder | unit tests |
+
+Headless Chromium has no WebGPU on most hosts, so `browser` mode is slow (Wasm/CPU
+fallback) — hence it's opt-in and `local` is the default. See
+[`docs/friction-log.md`](docs/friction-log.md) #4.
 
 ## Tool surface
 
@@ -56,9 +69,14 @@ Resources: `wardrobe://catalog`, `wardrobe://looks/{lookId}`. Prompt: `style_me`
 ```bash
 npm install
 cp .env.example .env
-npm run seed      # demo user "Praveen" + photo + pre-rendered looks
+npm run seed      # demo user "Praveen" + try-on test photo + whole-catalog pre-render
 npm run dev       # http://localhost:3000/mcp
 ```
+
+`npm run seed` fetches the catalog garment PNGs and a test photo from the deployed try-on
+app (cached under `data/assets/`). Render one look to eyeball it:
+`tsx scripts/render-one.ts dress-magenta-wrap-01 photo-01` (add `--browser` for the real
+bridge).
 
 Auth in dev: send `Authorization: Bearer dev_praveen` (any `dev_<userId>` works; full
 OAuth 2.1 lands in Phase 3). Point MCP Inspector at `http://localhost:3000/mcp`.
@@ -84,10 +102,13 @@ answers in < 500 ms.
 ## Status
 
 - [x] **Phase 1** — skeleton MCP over Streamable HTTP, catalog + wardrobe + suggest tools, SQLite store, smoke flow.
-- [x] Full tool surface wired with a stub renderer (image tools answer from cache).
-- [ ] **Phase 2** — real Playwright renderer bridge; freeze tool schemas.
+- [x] **Phase 2** — renderer bridge (`local` sharp compositor + opt-in `browser` bridge to the try-on app's WebMCP tools), `sharp` compare sheets, cache + queue, whole-catalog pre-render on seed, inline image blocks. Catalog synced from `pravoobi/try-on`. Tool schemas frozen (`test/fixtures/tools-list.json`).
 - [ ] **Phase 3** — OAuth 2.1 AS (PKCE, `resource`), DynamoDB + S3/CloudFront, Bedrock tagging, AWS App Runner.
 - [ ] **Phase 4** — Alexa+ add-on (`alexa-ai deploy`).
+
+The full sangeet flow (`npm run smoke`) runs end-to-end from a cold seed: `suggest_outfits`
+→ `preview_look` → `save_look` → `compare_looks` → `record_reaction`, every image tool a
+cache hit under 100 ms.
 
 See [`CLAUDE.md`](CLAUDE.md) for the full plan and [`docs/`](docs/) for the friction log,
 product feedback, and submission notes.

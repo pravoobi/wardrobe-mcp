@@ -16,16 +16,18 @@ async function main(): Promise<void> {
     createdAt: new Date().toISOString(),
   });
 
+  // Primary photo: the try-on app's bundled test photo. Swap for a real upload
+  // via the companion UI (Phase 6). `tryon:<id>` is resolved by the renderer.
   await store.addPhoto({
     id: "photo-1",
     userId: DEMO_USER,
-    s3Key: "seed/praveen-primary.jpg",
+    s3Key: "tryon:photo-01",
     width: 768,
     height: 1152,
     isPrimary: true,
   });
 
-  const owned = ["kurta-white-chikankari", "nehru-jacket-emerald"];
+  const owned = ["kurti-cream-embroidered-01", "dress-green-floral-01"];
   for (const garmentId of owned) {
     const g = catalog.find((x) => x.id === garmentId);
     if (!g) continue;
@@ -39,16 +41,19 @@ async function main(): Promise<void> {
     });
   }
 
-  // Pre-render the demo user's photo against the whole catalog.
+  // Pre-render the demo user's photo against the whole catalog so every
+  // preview_look is a warm cache hit.
+  console.log(`Rendering ${catalog.length} looks (mode: ${process.env.RENDER_MODE ?? "local"})...`);
+  const t0 = performance.now();
   for (const g of catalog) {
     await render.enqueue({ userId: DEMO_USER, photoId: "photo-1", garmentId: g.id });
   }
+  await render.settle(120_000);
+  await render.close();
 
-  // Give the stub worker a tick to drain.
-  await new Promise((r) => setTimeout(r, 200));
-
-  const looks = await store.listLooks(DEMO_USER);
-  console.log(`Seeded ${DEMO_USER}: photo-1, ${owned.length} wardrobe items, ${catalog.length} renders queued, ${looks.length} looks.`);
+  console.log(
+    `Seeded ${DEMO_USER}: photo-1, ${owned.length} wardrobe items, ${catalog.length} looks rendered in ${((performance.now() - t0) / 1000).toFixed(1)}s.`,
+  );
   console.log(`Dev token: dev_${DEMO_USER}`);
 }
 

@@ -18,6 +18,7 @@ export default defineConfig({
       SQLITE_PATH: ":memory:",
       MCP_CANONICAL_URL: "http://localhost:3000/mcp",
       PUBLIC_RENDER_BASE_URL: "http://localhost:3000/renders",
+      RENDER_MODE: "stub",
     },
   },
 });

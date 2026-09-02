@@ -37,6 +37,26 @@ For each: **used for** · **what worked** · **what needs work** · **onboarding
 
 - _pending — Phase 3._
 
-## Playwright (headless Chromium, WebGPU/Wasm fallback)
+## Playwright (headless Chromium)
 
-- _pending — Phase 2._
+- **Used for** — the renderer bridge: opening the deployed try-on app and driving its WebMCP
+  tools, then snapshotting the result canvas.
+- **What worked** — `chromium.launch` + `page.evaluate` is exactly the right primitive;
+  `setInputFiles` with an in-memory buffer covers the photo-upload path without touching disk.
+  `npx playwright install chromium` was a single clean step.
+- **What needs work** — No WebGPU in headless Chromium even with `--enable-unsafe-webgpu`
+  (see friction log #4), so GPU-bound page workloads fall back to CPU. `waitForFunction`'s
+  signature is `(fn, arg, options)` — passing `{ timeout }` as the 2nd arg silently uses the
+  default 30 s; easy to miss.
+- **Onboarding** — Good.
+- **Would use again?** — Yes.
+
+## WebMCP (`document.modelContext`) — consuming a page's tools
+
+- **Used for** — calling the try-on app's `apply_tryon` / `save_look` from the render worker.
+- **What worked** — Once the call shape is known (`.tools.get(name).execute(args)`), it
+  returns a standard MCP `CallToolResult` — the same contract as our remote server, which is
+  the whole "one contract, two transports" thesis.
+- **What needs work** — The agent-side call is undocumented; `document.modelContext` is the
+  provider server object and its `executeTool` is for internal use (see friction log #5).
+- **Would use again?** — Yes — this is the pattern the project is built on.

@@ -55,3 +55,42 @@ Format per entry:
   `c.req.json()` and pass it as the third arg so the transport doesn't re-read the stream.
 - **Suggestion** — A `fetch`-native transport (or an adapter in the SDK) would let the
   server run unmodified on Workers, Lambda, Hono, and Deno.
+
+## 4. Headless Chromium has no WebGPU — the try-on LiteRT pipeline falls back to Wasm/CPU
+
+- **Task** — Drive the deployed try-on app's WebMCP tools from a Playwright worker to
+  produce the rendered look for `preview_look` (the renderer bridge).
+- **Steps** — `chromium.launch({ headless: true, args: ["--enable-unsafe-webgpu",
+  "--enable-features=Vulkan"] })`, opened `https://pravoobi.github.io/try-on/?present`,
+  called `document.modelContext.tools.get("apply_tryon").execute(...)`.
+- **Expected vs actual** — Expected WebGPU with the unsafe flag. Actual: `navigator.gpu` is
+  absent and the page logs `Failed to create default WebGPU device: No GPU adapter found`.
+  LiteRT registers the CPU accelerator and the pipeline still runs — correct output — but
+  the segmentation/warp is slow enough that a cold render takes tens of seconds on a CI-class
+  host, and the test-photo buttons stay `disabled` for over two minutes while models load.
+- **Severity** — important (shapes the whole rendering architecture).
+- **Workaround** — Two render modes. `RENDER_MODE=local` (default) composes a look card
+  with `sharp` from the flat garment PNG + the customer photo — fast, deterministic, offline,
+  honest (it pairs garment with person, it does not warp). `RENDER_MODE=browser` is the real
+  bridge, opt-in, for a GPU-capable host or an `xvfb` display. Rendering is pre-computed and
+  cached either way, so it never touches a tool-call path.
+- **Suggestion** — (try-on / LiteRT.js) a documented "offline render" entry point that
+  forces the CPU backend and resolves a promise when the composite is on the canvas would
+  make headless automation reliable; today we poll canvas-pixel stability. Also: keep the
+  test-photo buttons enabled and queue the click, rather than gating them on model load.
+
+## 5. WebMCP: `document.modelContext` is the provider server, not a client — no obvious "call a tool"
+
+- **Task** — From Playwright (acting as the agent), invoke a tool the page registered.
+- **Steps** — Tried `document.modelContext.executeTool("apply_tryon", args)` and
+  `executeTool({ name, arguments })`; both threw `TypeError: RegisteredTool must be an object`
+  / `RegisteredTool.description is required`. `getTools()` returns a Map, not an array.
+- **Expected vs actual** — Expected a client-style `callTool(name, args)`. Actual:
+  `document.modelContext` is a `BrowserMcpServer` (the registration side). The working call
+  is `document.modelContext.tools.get(name).execute(args)` — returns a standard MCP
+  `CallToolResult`.
+- **Severity** — important (undocumented; cost an afternoon of probing).
+- **Workaround** — Use `.tools.get(name).execute(args)`. Documented in
+  `src/render/worker.ts`.
+- **Suggestion** — The WebMCP explainer should show the agent-side call explicitly, and a
+  symmetrical `document.modelContext.callTool(name, args)` helper would remove the guesswork.

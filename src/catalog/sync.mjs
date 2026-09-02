@@ -1,12 +1,13 @@
 // Re-pull the catalog from the try-on repo so the two never drift.
-// Strips try-on anchor data; keeps id / category / meta only.
+// Strips try-on render data (anchors, local image path); keeps id / category /
+// meta, and synthesizes a product URL (a deep link back into the try-on app).
 // Usage: node src/catalog/sync.mjs
 
 import { writeFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const SRC =
-  "https://raw.githubusercontent.com/pravoobi/try-on/main/src/garments/catalog.json";
+const SRC = "https://raw.githubusercontent.com/pravoobi/try-on/main/src/garments/catalog.json";
+const APP = "https://pravoobi.github.io/try-on";
 const DEST = fileURLToPath(new URL("./catalog.json", import.meta.url));
 
 const res = await fetch(SRC);
@@ -17,7 +18,8 @@ if (!res.ok) {
 const upstream = await res.json();
 const current = JSON.parse(readFileSync(DEST, "utf8"));
 
-const garments = (upstream.garments ?? upstream).map((g) => ({
+const list = Array.isArray(upstream) ? upstream : (upstream.garments ?? []);
+const garments = list.map((g) => ({
   id: g.id,
   category: g.category,
   meta: {
@@ -27,15 +29,19 @@ const garments = (upstream.garments ?? upstream).map((g) => ({
     price: g.meta?.price ?? g.price,
     sleeves: g.meta?.sleeves ?? g.sleeves,
     length: g.meta?.length ?? g.length,
-    productUrl: g.meta?.productUrl ?? g.productUrl,
+    productUrl: `${APP}/?try=${encodeURIComponent(g.id)}`,
   },
 }));
 
 const next = {
-  ...current,
-  tryonAppVersion: upstream.version ?? upstream.tryonAppVersion ?? current.tryonAppVersion,
+  _note:
+    "Metadata-only copy of try-on/src/garments/catalog.json. Render anchors and image paths are intentionally stripped. Re-pull with `npm run sync-catalog`.",
+  source: "https://github.com/pravoobi/try-on/blob/main/src/garments/catalog.json",
+  tryonAppVersion: process.env.TRYON_APP_VERSION ?? current.tryonAppVersion ?? "dev",
+  usdPerInr: current.usdPerInr ?? 0.012,
   garments,
 };
 
 writeFileSync(DEST, JSON.stringify(next, null, 2) + "\n");
 console.log(`sync-catalog: wrote ${garments.length} garments to ${DEST}`);
+for (const g of garments) console.log(`  ${g.id}  (${g.category}, ${g.meta.color}, ₹${g.meta.price})`);

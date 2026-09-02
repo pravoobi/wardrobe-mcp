@@ -6,7 +6,7 @@ import type { Garment } from "../../store/types.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export const suggestOutfitsSchema = {
-  occasion: z.string().describe("The event, e.g. 'sangeet', 'reception', 'haldi'."),
+  occasion: z.string().describe("The event, e.g. 'sangeet', 'reception', 'mehendi'."),
   budget: z.number().positive().optional().describe("Budget in Indian rupees."),
   color: z.string().optional().describe("Preferred colour, if the user has one."),
   prefer: z
@@ -17,6 +17,20 @@ export const suggestOutfitsSchema = {
 
 const Input = z.object(suggestOutfitsSchema);
 export type SuggestOutfitsInput = z.infer<typeof Input>;
+
+/** Occasions that read as close enough to fill out a shortlist. Deterministic. */
+const ADJACENT: Record<string, string[]> = {
+  sangeet: ["reception", "cocktail", "party", "wedding", "mehendi"],
+  wedding: ["reception", "sangeet"],
+  reception: ["sangeet", "cocktail", "party", "wedding"],
+  mehendi: ["haldi", "festive", "daytime", "sangeet"],
+  haldi: ["mehendi", "festive", "daytime"],
+  cocktail: ["party", "reception", "date-night"],
+  party: ["cocktail", "reception", "date-night"],
+  brunch: ["daytime", "casual", "date-night"],
+  office: ["daytime", "casual"],
+  casual: ["daytime", "brunch"],
+};
 
 interface Candidate {
   garment: Garment;
@@ -32,16 +46,13 @@ export async function suggestOutfits(
   const occ = input.occasion.toLowerCase();
   const color = input.color?.toLowerCase();
   const prefer = input.prefer ?? "any";
+  const adjacent = new Set(ADJACENT[occ] ?? []);
 
   const wardrobe = await ctx.store.listWardrobe(ctx.user.userId);
   const ownedIds = new Set(wardrobe.map((w) => w.garmentId));
 
   const pool: Garment[] = [
-    ...wardrobe.map((w) => ({
-      id: w.garmentId,
-      category: w.meta.category,
-      meta: w.meta,
-    })),
+    ...wardrobe.map((w) => ({ id: w.garmentId, category: w.meta.category, meta: w.meta })),
     ...catalog.filter((g) => !ownedIds.has(g.id)),
   ];
 
@@ -51,16 +62,22 @@ export async function suggestOutfits(
     if (prefer === "owned" && !owned) continue;
     if (prefer === "catalog" && owned) continue;
 
-    const occasionMatch = g.meta.occasion.map((o) => o.toLowerCase()).includes(occ);
+    const occs = g.meta.occasion.map((o) => o.toLowerCase());
+    const exact = occs.includes(occ);
+    const near = !exact && occs.some((o) => adjacent.has(o));
     const withinBudget = input.budget === undefined || (g.meta.price ?? 0) <= input.budget;
     const colorMatch = color !== undefined && g.meta.color.toLowerCase() === color;
 
-    // Deterministic ranking: occasion match > owned > budget fit > colour.
+    // Deterministic ranking: occasion fit > owned > budget fit > colour.
     let score = 0;
     const reasons: string[] = [];
-    if (occasionMatch) {
+    if (exact) {
       score += 100;
       reasons.push(`made for a ${input.occasion}`);
+    } else if (near) {
+      score += 50;
+      const shared = occs.find((o) => adjacent.has(o));
+      reasons.push(`a ${shared} look that carries a ${input.occasion}`);
     }
     if (owned) {
       score += 40;
@@ -70,17 +87,17 @@ export async function suggestOutfits(
       score += 20;
       if (input.budget !== undefined) reasons.push("within budget");
     } else {
-      score -= 50;
-      reasons.push("over budget");
+      score -= 40;
+      reasons.push("a stretch on budget");
     }
     if (colorMatch) {
-      score += 10;
+      score += 12;
       reasons.push(`your ${input.color}`);
     }
     // Tie-break: cheaper first.
     score += g.meta.price ? Math.max(0, 5 - g.meta.price / 4000) : 0;
 
-    if (!occasionMatch && score < 60) continue;
+    if (!exact && !near && !owned) continue;
 
     candidates.push({
       garment: g,
