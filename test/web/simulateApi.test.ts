@@ -30,7 +30,7 @@ describe("POST /api/simulate/turn", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns the model's message and stopReason on success", async () => {
+  it("returns the model's message and stopReason on success, tagged reasoner: bedrock", async () => {
     const app = appWith(async () =>
       ({
         output: { message: { role: "assistant", content: [{ text: "hi there" }] } },
@@ -43,9 +43,10 @@ describe("POST /api/simulate/turn", () => {
       body: body(),
     });
     expect(res.status).toBe(200);
-    const json = (await res.json()) as { message: { content: { text: string }[] }; stopReason: string };
+    const json = (await res.json()) as { message: { content: { text: string }[] }; stopReason: string; reasoner: string };
     expect(json.stopReason).toBe("end_turn");
     expect(json.message.content[0]!.text).toBe("hi there");
+    expect(json.reasoner).toBe("bedrock");
   });
 
   it("400s on a malformed body without calling Bedrock", async () => {
@@ -60,19 +61,20 @@ describe("POST /api/simulate/turn", () => {
     expect(res.status).toBe(400);
   });
 
-  it("502s when Bedrock errors, surfacing the message", async () => {
+  it("falls back to the rule-based reasoner when Bedrock errors, tagged and never silent", async () => {
     const app = appWith(async () => {
       throw new Error("ValidationException: Operation not allowed");
     });
     const res = await app.request("/api/simulate/turn", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer dev_praveen" },
-      body: body(),
+      body: body({ messages: [{ role: "user", content: [{ text: "what should I wear to a sangeet" }] }] }),
     });
-    expect(res.status).toBe(502);
-    const json = (await res.json()) as { error: string; message: string };
-    expect(json.error).toBe("bedrock_error");
-    expect(json.message).toMatch(/Operation not allowed/);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { reasoner: string; bedrockError: string; stopReason: string; message: unknown };
+    expect(json.reasoner).toBe("rule-based");
+    expect(json.bedrockError).toMatch(/Operation not allowed/);
+    expect(json.stopReason).toBe("tool_use");
   });
 
   it("converts MCP-style tools into Bedrock toolConfig", async () => {

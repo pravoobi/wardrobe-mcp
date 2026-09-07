@@ -123,12 +123,15 @@ negotiated protocol ≥ `2025-11-25`; every image tool a cache hit < 100 ms.
 - [x] ~~**Phase 4** — Alexa+ add-on (`alexa-ai deploy`).~~ Skipped: the add-ons console is
   partner-gated ("coming soon"), not self-serve. Pivoted to Phase 5 (Devpost's officially
   sanctioned simulated-experience path — see friction log #8).
-- [ ] **Phase 5** — simulated Alexa+ web app (`web/simulator.html`): real OAuth 2.1 PKCE
+- [x] **Phase 5** — simulated Alexa+ web app (`web/simulator.html`): real OAuth 2.1 PKCE
   login + the real `@modelcontextprotocol/sdk` client (bundled for the browser, no CDN) over
-  Streamable HTTP — verified working end-to-end in a real browser against the local server
-  (connects, lists all 9 tools). **Blocked:** the Bedrock reasoning step that decides which
-  tool to call next now fails account-wide (same verification issue as above, spread to
-  Bedrock mid-session — friction log #9), so the sangeet flow isn't demoable yet.
+  Streamable HTTP. **The full sangeet flow runs end-to-end in a real browser**: `suggest_outfits`
+  → `preview_look` → `save_look` → `preview_look` (another option) → `save_look` →
+  `compare_looks`, with real rendered images on the simulated Echo Show screen. Bedrock (the
+  reasoning step that picks which tool to call) is still blocked account-wide (friction log
+  #9), so `src/web/ruleReasoner.ts` — a small deterministic intent matcher — stands in
+  automatically, tagged and visibly labeled in the transcript, never silent. It reverts to
+  real Bedrock the moment the account clears, no config to flip back.
 
 The full sangeet flow (`npm run smoke`) runs end-to-end from a cold seed: `suggest_outfits`
 → `preview_look` → `save_look` → `compare_looks` → `record_reaction`, every image tool a

@@ -168,12 +168,18 @@ Format per entry:
   Phase 3 code) silently non-functional against the real account, not just the new
   simulator work, and it wasn't caught by unit tests because they mock the Bedrock
   client entirely.
-- **Workaround** — None yet; this is the same new-account verification hold as
-  CloudFront/App Runner (friction log — see App Runner/CloudFront ops notes), now
-  apparently widened to cover Bedrock too. Filed one AWS Support case covering all
-  three; until it clears, `TAGGING_PROVIDER=none` and the Phase 5 reasoning loop both
-  have to be demoed against expectations set accordingly, or with a temporary
-  rule-based stand-in.
+- **Workaround** — This is the same new-account verification hold as CloudFront/App
+  Runner (see App Runner/CloudFront ops notes), now apparently widened to cover Bedrock
+  too. Filed one AWS Support case covering all three. For the Phase 5 reasoning loop
+  specifically, built `src/web/ruleReasoner.ts` — a deterministic keyword matcher that
+  returns the exact same `{message, stopReason}` shape Bedrock's Converse API does, so
+  the browser loop can't tell the difference structurally. `simulateApi.ts` tries
+  Bedrock first and falls back to it automatically on any error, tagging the response
+  (`reasoner: "bedrock" | "rule-based"`) so the UI can show an honest, visible label
+  rather than silently pretending — reverts to real Bedrock the instant the account
+  clears, no config to flip. This unblocked full end-to-end verification of the sangeet
+  flow (2026-09-07) despite Bedrock still being down. `TAGGING_PROVIDER=none` has no
+  equivalent fallback yet — garment auto-tagging just doesn't run until Bedrock is back.
 - **Suggestion** — If Bedrock access is genuinely tied to the same account-verification
   gate as CloudFront/App Runner, the `ValidationException` message should say so
   (`"Account pending verification"`) instead of the generic, unsearchable "Operation not

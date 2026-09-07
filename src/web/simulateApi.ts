@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import { z } from "zod";
 import type { BedrockRuntimeClient, Message, Tool } from "@aws-sdk/client-bedrock-runtime";
 import { config } from "../config.js";
+import { reason } from "./ruleReasoner.js";
 
 /**
  * The reasoning step for the Phase 5 simulated Alexa+ web app
@@ -94,12 +95,23 @@ export function mountSimulatorApi(
           inferenceConfig: { maxTokens: 400, temperature: 0.3 },
         }),
       );
-      return c.json({ message: res.output?.message ?? { role: "assistant", content: [] }, stopReason: res.stopReason });
+      return c.json({
+        message: res.output?.message ?? { role: "assistant", content: [] },
+        stopReason: res.stopReason,
+        reasoner: "bedrock",
+      });
     } catch (err) {
-      return c.json(
-        { error: "bedrock_error", message: err instanceof Error ? err.message : String(err) },
-        502,
-      );
+      // Bedrock is currently blocked account-wide (friction log #9) — fall back to the
+      // deterministic reasoner rather than dead-ending the demo. Never silent: the
+      // response is tagged so the browser can label it, and this reverts to Bedrock
+      // automatically the moment the real call succeeds again — no config to flip back.
+      console.warn("Bedrock call failed, falling back to rule-based reasoner:", err);
+      const fallback = reason(messages as unknown as Parameters<typeof reason>[0], tools);
+      return c.json({
+        ...fallback,
+        reasoner: "rule-based",
+        bedrockError: err instanceof Error ? err.message : String(err),
+      });
     }
   });
 }

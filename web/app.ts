@@ -223,6 +223,7 @@ async function sendTurn(userText: string): Promise<void> {
   setComposerEnabled(false);
   setMicLive(true);
 
+  let usedFallbackReasoner = false;
   try {
     const toolDefs = mcpTools.map((t) => ({
       name: t.name,
@@ -242,7 +243,12 @@ async function sendTurn(userText: string): Promise<void> {
         addBubble("error", err.message ?? `reasoning step failed (${res.status})`);
         break;
       }
-      const { message, stopReason } = (await res.json()) as { message: ConvMessage; stopReason: string };
+      const { message, stopReason, reasoner } = (await res.json()) as {
+        message: ConvMessage;
+        stopReason: string;
+        reasoner?: "bedrock" | "rule-based";
+      };
+      if (reasoner === "rule-based") usedFallbackReasoner = true;
       conversation.push(message);
 
       const spoken = message.content.filter((b) => b.text).map((b) => b.text!.trim()).filter(Boolean);
@@ -286,6 +292,9 @@ async function sendTurn(userText: string): Promise<void> {
   } catch (err) {
     addBubble("error", err instanceof Error ? err.message : String(err));
   } finally {
+    if (usedFallbackReasoner) {
+      addBubble("tool", "⚠ Bedrock is unavailable right now — answered with the offline rule-based reasoner (same real MCP tools, no AI reasoning).");
+    }
     setComposerEnabled(true);
     setMicLive(false);
     utteranceInput.focus();

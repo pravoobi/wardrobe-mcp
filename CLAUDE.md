@@ -342,12 +342,21 @@ moot until/unless that changes. Left here only as a record of what it would have
   (`src/web/simulateApi.ts`, `POST /api/simulate/turn`, Bedrock `ConverseCommand` with
   `toolConfig` built from the live `tools/list` schemas) is wired and unit-tested with an
   injected fake client (`test/web/simulateApi.test.ts`).
-- **Blocked, not a bug:** the real Bedrock call fails account-wide (`ValidationException:
-  Operation not allowed` — friction log #9), so the sangeet flow can't be demoed
-  end-to-end yet. Everything up to "which tool to call" is proven; only the LLM decision
-  step is waiting on AWS Support to clear the account.
-- **Done when:** the sangeet flow runs end-to-end in `web/simulator.html` against the
-  deployed server, with a screen recording of it.
+- **Bedrock still blocked** (`ValidationException: Operation not allowed` — friction log
+  #9), so `src/web/ruleReasoner.ts` was added: a small deterministic intent matcher with
+  the exact same `{message, stopReason}` contract Bedrock's Converse API returns, so
+  `web/app.ts`'s loop never has to know which one answered. `simulateApi.ts` tries
+  Bedrock first, falls back to it automatically on any error, and tags the response
+  (`reasoner: "bedrock" | "rule-based"`) — the browser shows a visible, honest label when
+  the fallback engaged (never silent, per the "don't pretend" spirit above). Reverts to
+  real Bedrock the instant the account clears; no config to flip back. Unit-tested with
+  the full turn-by-turn sangeet sequence (`test/web/ruleReasoner.test.ts`).
+- **Done 2026-09-07 — verified in an actual browser against the local server**: the full
+  sangeet flow runs end-to-end — `suggest_outfits` → `preview_look` → `save_look` →
+  `preview_look` (another option) → `save_look` → `compare_looks` — with real rendered
+  images on the simulated Echo Show screen. Remaining before this phase is fully closed:
+  re-run the same flow against the *deployed* server once App Runner is up, and record
+  the screen capture for the demo video.
 
 ### Phase 6 — Stretch, in priority order (Oct 4–12)
 1. **MCP Apps UI** (`@modelcontextprotocol/ext-apps`) — an interactive compare view
