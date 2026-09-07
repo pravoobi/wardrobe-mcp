@@ -27,6 +27,17 @@ export async function createBrowserWorker(): Promise<BrowserWorker> {
   const { chromium } = await import("playwright");
   const browser: Browser = await chromium.launch({
     headless: true,
+    // `channel: "chromium"` is load-bearing, not cosmetic. Playwright's default
+    // headless uses `chromium_headless_shell`, which ships with no GPU stack at
+    // all: `navigator.gpu` exists but `requestAdapter()` returns null, the try-on
+    // app never gets a WebGPU device, and its test-photo buttons stay `disabled`
+    // forever — the page just sits there with no error, no failed request, and no
+    // model download ever starting. The full Chrome-for-Testing binary has the
+    // graphics stack, gets an adapter, and the buttons enable in ~3s.
+    // Measured 2026-09-07: headless shell = stuck >6min; channel:chromium = 3s.
+    // Note: `--use-angle=swiftshader` does NOT help here — it actively prevents
+    // adapter creation. The flags below are incidental; the channel is the fix.
+    channel: "chromium",
     args: ["--enable-unsafe-webgpu", "--enable-features=Vulkan,WebAssemblyJSPI"],
   });
 

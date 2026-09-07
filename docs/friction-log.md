@@ -63,21 +63,51 @@ Format per entry:
 - **Steps** — `chromium.launch({ headless: true, args: ["--enable-unsafe-webgpu",
   "--enable-features=Vulkan"] })`, opened `https://pravoobi.github.io/try-on/?present`,
   called `document.modelContext.tools.get("apply_tryon").execute(...)`.
-- **Expected vs actual** — Expected WebGPU with the unsafe flag. Actual: `navigator.gpu` is
-  absent and the page logs `Failed to create default WebGPU device: No GPU adapter found`.
-  LiteRT registers the CPU accelerator and the pipeline still runs — correct output — but
-  the segmentation/warp is slow enough that a cold render takes tens of seconds on a CI-class
-  host, and the test-photo buttons stay `disabled` for over two minutes while models load.
+- **Expected vs actual** — Expected WebGPU with the unsafe flag. Actual: `requestAdapter()`
+  returns `null`, the page logs `Failed to create default WebGPU device: No GPU adapter
+  found`, and the test-photo buttons stay `disabled`. Originally diagnosed as "CPU fallback
+  works, just slowly (tens of seconds, buttons disabled for over two minutes)."
 - **Severity** — important (shapes the whole rendering architecture).
 - **Workaround** — Two render modes. `RENDER_MODE=local` (default) composes a look card
   with `sharp` from the flat garment PNG + the customer photo — fast, deterministic, offline,
   honest (it pairs garment with person, it does not warp). `RENDER_MODE=browser` is the real
-  bridge, opt-in, for a GPU-capable host or an `xvfb` display. Rendering is pre-computed and
-  cached either way, so it never touches a tool-call path.
-- **Suggestion** — (try-on / LiteRT.js) a documented "offline render" entry point that
-  forces the CPU backend and resolves a promise when the composite is on the canvas would
-  make headless automation reliable; today we poll canvas-pixel stability. Also: keep the
-  test-photo buttons enabled and queue the click, rather than gating them on model load.
+  bridge. Rendering is pre-computed and cached either way, so it never touches a tool-call path.
+
+### 4a. …and the diagnosis above was wrong. The real cause: `chromium_headless_shell` (2026-09-07)
+
+- **Task** — Re-verify `RENDER_MODE=browser` after someone noticed `docs/demo.gif` shows the
+  garment *beside* the model rather than *on* her (correct — that's `local` mode by design).
+- **Steps** — Ran `tsx scripts/render-one.ts dress-magenta-wrap-01 photo-01 --browser`.
+  Timed out. Raised the click timeout 120s → 240s. Timed out again. Polled the button every
+  15s for a further 6 minutes: never enabled. Then instrumented properly — every request's
+  full lifecycle, `crossOriginIsolated`, `SharedArrayBuffer`, `requestAdapter()`, and the
+  worker's console.
+- **Expected vs actual** — Expected "slow but eventually finishes," per entry #4. Actual: it
+  never finishes, and it isn't slowness at all. The smoking gun was the **network log: 15
+  requests, none pending, none failed, none slow — the model files were never fetched.** The
+  app wasn't grinding through CPU inference; it was parked before it ever started, waiting on
+  a WebGPU device that would never arrive. No error, no failed request, no timeout of its own.
+- **Root cause** — Playwright's `headless: true` launches `chromium_headless_shell`, a
+  stripped build with **no GPU stack at all**. `navigator.gpu` is present (so a feature-detect
+  passes) but `requestAdapter()` resolves `null`. Switching to the full Chrome-for-Testing
+  binary via **`channel: "chromium"`** gets a real adapter. That one option is the entire fix:
+  **stuck >6 min → buttons enabled in 3 s, full render in 13.1 s.** Verified by isolation —
+  the launch flags make no difference either way (works with the original
+  `--enable-unsafe-webgpu --enable-features=Vulkan,WebAssemblyJSPI`, and with no args at all).
+- **Severity** — critical (the project's headline differentiator was silently non-functional,
+  behind a plausible-sounding "it's just slow" explanation that stopped anyone from digging).
+- **Workaround/fix** — `channel: "chromium"` in `createBrowserWorker()`, with a comment
+  explaining why it's load-bearing so nobody "cleans it up" later.
+- **⚠️ Correction to earlier advice** — `--use-angle=swiftshader` (suggested in CLAUDE.md's
+  gotchas as the remedy) **makes it worse**: forcing ANGLE→SwiftShader prevented adapter
+  creation even on the full binary. Tested; that guidance has been corrected.
+- **Suggestion** — (Playwright) `headless: true` silently selecting a browser with no
+  graphics stack is a sharp edge for any WebGPU/WebGL workload. Either warn when a page calls
+  `requestAdapter()` on the shell, or document the "use `channel: 'chromium'` for GPU work"
+  rule somewhere it'll be found *before* someone loses a day. (try-on / LiteRT.js) a page
+  that gates its UI on GPU init should surface a visible timeout/error state rather than
+  leaving controls `disabled` indefinitely — the silent wait is what made this so hard to
+  attribute.
 
 ## 5. WebMCP: `document.modelContext` is the provider server, not a client — no obvious "call a tool"
 

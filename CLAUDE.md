@@ -313,10 +313,9 @@ add-on review loop, the video, and the things Amazon's tooling will break.
   injects the user photo (reuse the test-photo loader path or a file-input upload),
   `executeTool('apply_tryon', {garmentId})`, waits for the pipeline, snapshots the canvas
   (try-on's `snapshotCanvas.ts` already does this via `save_look` → use its data URL).
-- Check WebGPU availability in headless Chromium; if absent, confirm CPU/Wasm fallback
-  renders correctly (slower is fine — it's offline). Flag `--use-angle=swiftshader` etc.
-  only if needed. **Record the finding in the friction log** (it's try-on/LiteRT feedback
-  too — legit product feedback).
+- Check WebGPU availability in headless Chromium. ✅ **Resolved 2026-09-07:** requires
+  `channel: "chromium"` (the default headless shell has no GPU stack); `--use-angle=swiftshader`
+  makes it worse, not better. Friction log #4a has the full debugging trail.
 - Cache + queue + `preview_look`, `save_look`, `list_looks`, `compare_looks` (sharp),
   `record_reaction`. Local storage backend writes to `./renders` and serves them statically.
 - Pre-render on `add_to_wardrobe` and on seed. Demo user boots with all looks cached.
@@ -443,8 +442,16 @@ moot until/unless that changes. Left here only as a record of what it would have
 - **Image content blocks are big.** Cap inline base64 at ~200 KB WEBP (640 px wide);
   always include the HTTPS URL. Some clients ignore inline images; the URL is the
   contract.
-- **Headless WebGPU is unreliable.** Expect Wasm/XNNPack fallback; it is slower but
-  correct. Keep the browser alive between jobs (model load is the expensive part).
+- **Headless WebGPU: use `channel: "chromium"`, and do NOT use swiftshader.** Playwright's
+  `headless: true` defaults to `chromium_headless_shell`, which has no GPU stack:
+  `navigator.gpu` exists but `requestAdapter()` returns `null`, so the try-on app waits
+  forever on a device that never arrives — no error, no failed request, nothing fetched,
+  buttons just stay `disabled`. `channel: "chromium"` (full Chrome-for-Testing) fixes it
+  outright: stuck >6 min → 3 s to ready, 13 s to a finished render. Measured 2026-09-07;
+  see friction log #4a. **`--use-angle=swiftshader` is actively harmful here** — it
+  prevents adapter creation; earlier advice in this file recommending it was wrong. Launch
+  flags otherwise make no difference. Keep the browser alive between jobs (model load is
+  the expensive part).
 - **Catalog drift.** `catalog.json` is copied, not imported, from try-on (different repo,
   different build). Run `sync-catalog` before the demo and pin `tryonAppVersion` in the
   render cache key so a try-on deploy invalidates stale renders.
