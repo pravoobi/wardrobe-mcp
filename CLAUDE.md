@@ -381,7 +381,13 @@ moot until/unless that changes. Left here only as a record of what it would have
   bind-mount ownership on hosts where `./data`/`./renders` aren't owned by uid 1001 —
   `docker-compose.yml` overrides `user: root` for local-dev convenience only; the actual
   shipped image is untouched. Alexa+ add-on setup — dropped (Phase 4). AWS deploy notes:
-  done in `docs/aws.md`.
+  done in `docs/aws.md`. GIF — `docs/demo.gif`, recorded 2026-09-07 in an actual browser
+  against a freshly-seeded local server (17 frames: suggest → preview → save → preview
+  another → save → compare), embedded at the top of the README. Recorded honestly with
+  the rule-based-fallback notice visible since Bedrock was still down at record time —
+  re-record once real Bedrock reasoning is back if a cleaner take is wanted, not
+  required. Diagram — the existing ASCII architecture diagram in the README was judged
+  sufficient; not redone as an image.
 - Demo video < 3 min: 0:00–0:20 hook (the voice flow, live), 0:20–1:40 full sangeet loop
   on screen, 1:40–2:20 the renderer bridge in one diagram, 2:20–2:50 AWS + open source +
   what's new vs try-on, 2:50 close. Record at 1080p, English VO, no music.

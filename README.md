@@ -16,6 +16,13 @@ Every tool is a thin, fast, structured lookup. Anything slow (rendering) is pre-
 Built for the Amazon *Build, Ship, Shape* hackathon — **Alexa+** track, plus the **AWS
 Builder** and **Open Source** mini challenges. MIT licensed.
 
+![The sangeet flow in the simulated Alexa+ web app: suggest, preview, save, compare](docs/demo.gif)
+
+*Recorded 2026-09-07 against a locally-seeded server. The "Bedrock is unavailable" notices
+are real and honest, not staged — the account-verification blocker in
+[`docs/aws.md`](docs/aws.md) was still open at recording time, so `src/web/ruleReasoner.ts`
+answered instead of real Bedrock. Same real MCP tools either way.*
+
 ## Architecture
 
 ```
