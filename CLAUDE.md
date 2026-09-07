@@ -365,7 +365,11 @@ moot until/unless that changes. Left here only as a record of what it would have
    experiences. Only after the voice flow is solid.
 2. Companion upload flow (user photo + garment) with Bedrock auto-tagging → makes the
    wardrobe real rather than seeded.
-3. `plan_week({ events: [{day, occasion}] })` — one outfit per event, no repeats.
+3. ✅ **Done 2026-09-07** — `plan_week({ events: [{day, occasion}] })`: one outfit per
+   event, deterministically ranked (occasion fit, then owned), never repeating a garment
+   across the week; unresolved days reported rather than erroring. Tool count is now 10
+   — `test/fixtures/tools-list.json` regenerated deliberately, `scripts/smoke.ts` and
+   `test/auth/bearer.test.ts`'s hardcoded counts updated to match.
 
 ### Phase 7 — Ship (Oct 13–23)
 - README: diagram, GIF, one-command local run — ✅ **done 2026-09-07**:

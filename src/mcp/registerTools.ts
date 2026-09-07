@@ -11,6 +11,7 @@ import { listLooks, listLooksSchema } from "./tools/listLooks.js";
 import { compareLooks, compareLooksSchema } from "./tools/compareLooks.js";
 import { recordReaction, recordReactionSchema } from "./tools/recordReaction.js";
 import { addToWardrobe, addToWardrobeSchema } from "./tools/addToWardrobe.js";
+import { planWeek, planWeekSchema } from "./tools/planWeek.js";
 
 /**
  * The whole tool contract in one place. Names follow the try-on WebMCP tools so
@@ -110,5 +111,13 @@ export function registerWardrobeTools(server: McpServer, ctx: ToolContext): void
     addToWardrobeSchema,
     {},
     addToWardrobe,
+  );
+
+  tool(
+    "plan_week",
+    "Plan outfits for up to a week of events at once — one per day, deterministically matched to each day's occasion, never repeating a garment across the week. Good for 'what should I wear this week' style requests with several occasions at once; use suggest_outfits instead for a single event.",
+    planWeekSchema,
+    { readOnlyHint: true },
+    planWeek,
   );
 }

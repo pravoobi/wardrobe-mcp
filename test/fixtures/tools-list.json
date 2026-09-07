@@ -39,6 +39,16 @@
     }
   },
   {
+    "name": "plan_week",
+    "inputSchema": [
+      "events"
+    ],
+    "annotations": {
+      "title": "plan_week",
+      "readOnlyHint": true
+    }
+  },
+  {
     "name": "preview_look",
     "inputSchema": [
       "garmentId",

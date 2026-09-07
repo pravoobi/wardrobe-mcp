@@ -19,7 +19,8 @@ const Input = z.object(suggestOutfitsSchema);
 export type SuggestOutfitsInput = z.infer<typeof Input>;
 
 /** Occasions that read as close enough to fill out a shortlist. Deterministic. */
-const ADJACENT: Record<string, string[]> = {
+/** Also used by `plan_week` — occasions that read as close enough to fill a shortlist. */
+export const ADJACENT: Record<string, string[]> = {
   sangeet: ["reception", "cocktail", "party", "wedding", "mehendi"],
   wedding: ["reception", "sangeet"],
   reception: ["sangeet", "cocktail", "party", "wedding"],

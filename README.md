@@ -61,6 +61,7 @@ fallback) — hence it's opt-in and `local` is the default. See
 | `compare_looks` | 2–3 saved looks side by side. |
 | `record_reaction` | `love` / `like` / `try_another` / `reject` → guidance for the next turn. |
 | `add_to_wardrobe` | Add a catalog garment; triggers background pre-render. |
+| `plan_week` | Up to a week of events, one outfit each, never repeating a garment. |
 
 Resources: `wardrobe://catalog`, `wardrobe://looks/{lookId}`. Prompt: `style_me`.
 
