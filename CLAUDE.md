@@ -359,10 +359,17 @@ moot until/unless that changes. Left here only as a record of what it would have
   the screen capture for the demo video.
 
 ### Phase 6 — Stretch, in priority order (Oct 4–12)
-1. **MCP Apps UI** (`@modelcontextprotocol/ext-apps`) — an interactive compare view
-   rendered in Alexa+'s webview: tap a look to preview, swipe to compare. This directly
-   targets the "Design" judging criterion and is what Amazon's docs push for visual
-   experiences. Only after the voice flow is solid.
+1. ~~**MCP Apps UI** (`@modelcontextprotocol/ext-apps`) — an interactive compare view
+   rendered in Alexa+'s webview.~~ **Dropped 2026-09-07, not reconsidered further**: this
+   targeted rendering *inside Alexa+'s own webview*, which doesn't exist for us anymore —
+   Phase 4 (the real add-on) was dropped when the MCP Toolkit console turned out to be
+   partner-gated (friction log #8). There's no Alexa+ webview to render into. The "Design"
+   judging criterion this was chasing is still served by `web/simulator.html`'s own
+   Echo-Show screen panel, which already shows real rendered images and a real compare
+   sheet (see `docs/demo.gif`) — that's the visual experience now, just not built on
+   `ext-apps`. Further interactive polish there (tap a thumbnail to re-preview, swipe
+   between saved looks) is a legitimate follow-on if there's time, but is a new decision
+   to make deliberately, not a continuation of this stretch item.
 2. Companion upload flow (user photo + garment) with Bedrock auto-tagging → makes the
    wardrobe real rather than seeded.
 3. ✅ **Done 2026-09-07** — `plan_week({ events: [{day, occasion}] })`: one outfit per
