@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolContext } from "./context.js";
 import { catalog, getGarment } from "../catalog/catalog.js";
 import { publicUrlForKey } from "../render/storage.js";
@@ -23,16 +23,33 @@ export function registerWardrobeResources(server: McpServer, ctx: ToolContext): 
     }),
   );
 
+  // Must be a ResourceTemplate, not a plain string: passing the string
+  // "wardrobe://looks/{lookId}" registers a *fixed* resource whose URI literally
+  // contains the braces, so `wardrobe://looks/look-1` returns "not found" and
+  // resources/templates/list comes back empty. The template also gives us the
+  // parsed `{ lookId }` instead of splitting the URI by hand.
   server.registerResource(
     "look",
-    "wardrobe://looks/{lookId}",
+    new ResourceTemplate("wardrobe://looks/{lookId}", {
+      list: async () => {
+        const looks = await ctx.store.listLooks(ctx.user.userId);
+        return {
+          resources: looks.map((l) => ({
+            name: l.label ?? l.id,
+            uri: `wardrobe://looks/${l.id}`,
+            mimeType: "application/json",
+          })),
+        };
+      },
+    }),
     {
       title: "Saved look",
       description: "A single look the customer saved, with its render URL.",
       mimeType: "application/json",
     },
-    async (uri) => {
-      const lookId = uri.href.split("/").pop() ?? "";
+    async (uri, variables) => {
+      const raw = variables.lookId;
+      const lookId = Array.isArray(raw) ? (raw[0] ?? "") : (raw ?? "");
       const look = await ctx.store.getLook(ctx.user.userId, lookId);
       const body = look
         ? {

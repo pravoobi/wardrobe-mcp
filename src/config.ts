@@ -27,6 +27,17 @@ export const config = {
     /\/$/,
     "",
   ),
+  /** Renderer backend. Validated rather than blind-cast: a typo like
+   * `RENDER_MODE=browserr` should fail loudly at boot, not silently render nothing. */
+  renderMode: (() => {
+    const v = env("RENDER_MODE", "local");
+    if (v !== "local" && v !== "browser" && v !== "stub") {
+      throw new Error(`Invalid RENDER_MODE "${v}" — expected local | browser | stub`);
+    }
+    return v;
+  })(),
+  /** How long the browser renderer waits for the try-on canvas to settle. */
+  renderSettleMs: Number(env("RENDER_SETTLE_MS", "45000")),
   taggingProvider: env("TAGGING_PROVIDER", "none") as "none" | "bedrock",
   tryonAppUrl: env("TRYON_APP_URL", "https://pravoobi.github.io/try-on/"),
   tryonAppVersion: env("TRYON_APP_VERSION", "dev"),

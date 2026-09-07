@@ -125,7 +125,8 @@ App Runner deploy is blocked (see `docs/aws.md`).
 
 ```bash
 npm run typecheck
-npm test            # unit + OAuth + Store contract + e2e MCP client  (59 tests)
+npm test            # unit + OAuth + discovery + CORS + Store contract + e2e MCP client
+                    # 75 pass; 8 DynamoDB-Local tests skip unless `npm run test:dynamo`
 npm run smoke       # boots the server, runs OAuth + the full sangeet flow
 npm run test:dynamo # Store contract against DynamoDB Local (needs Docker)
 ```

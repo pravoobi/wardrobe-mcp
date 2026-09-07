@@ -45,7 +45,7 @@ export class RenderQueue {
     private readonly store: Store,
     opts: { mode?: RenderMode; storage?: RenderStorage } = {},
   ) {
-    this.mode = opts.mode ?? (process.env.RENDER_MODE as RenderMode) ?? "local";
+    this.mode = opts.mode ?? config.renderMode;
     this.storage = opts.storage ?? (this.mode === "stub" ? new MemoryStorage() : getStorage());
   }
 

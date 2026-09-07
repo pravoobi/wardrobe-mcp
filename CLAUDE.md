@@ -128,11 +128,11 @@ wardrobe-mcp/
   README.md                     # architecture diagram, demo GIF, run instructions
   package.json
   Dockerfile                    # playwright base image + node app
-  addon/
-    addon.json                  # Alexa+ add-on manifest (alexa-ai new mcp)
-    assets/                     # icons (6 sizes, light+dark), 600x900 carousel
+  docker-compose.yml            # one-command local run: app + one-off `seed` service
+  # addon/ — NOT PRESENT. Phase 4 (the Alexa+ add-on manifest, icons, carousel art)
+  # was dropped when the MCP Toolkit console turned out to be partner-gated.
   src/
-    server.ts                   # entry point: Hono app, mounts /mcp + /oauth + /wardrobe
+    server.ts                   # entry point: Hono app, mounts /mcp + /oauth + /simulator
     mcp/
       registerTools.ts          # all tool registrations, one file — the contract
       tools/                    # one file per tool, pure fn (deps injected) + zod schema
@@ -145,7 +145,10 @@ wardrobe-mcp/
         compareLooks.ts
         recordReaction.ts
         addToWardrobe.ts
-      resources.ts              # wardrobe://catalog, wardrobe://looks/{id}
+        planWeek.ts             # Phase 6 stretch: a week of events, no repeats
+      resources.ts              # wardrobe://catalog + wardrobe://looks/{lookId}
+                                # (the latter MUST be a ResourceTemplate — a plain
+                                #  string registers a fixed URI and never resolves)
       prompts.ts                # "style_me" prompt template
       responses.ts              # helpers: text+structuredContent+image content blocks
     auth/
@@ -170,15 +173,28 @@ wardrobe-mcp/
       storage.ts                # S3 put + CloudFront URL (dev: local ./renders + static)
     tagging/
       bedrockTagger.ts          # image → {name,color,occasion[],category}; feature-flagged
-    web/
-      wardrobe.html             # companion UI: upload photo, upload garment, view looks
+    web/                        # Phase 5 server side (NOT the planned companion UI —
+      simulateApi.ts            #   POST /api/simulate/turn: thin Bedrock Converse proxy
+      ruleReasoner.ts           #   deterministic fallback when Bedrock is unavailable
+                                # web/wardrobe.html (companion upload UI) was never built —
+                                # Phase 6 stretch #2, deliberately deprioritized.
+  web/                          # Phase 5 browser side (top level, not src/)
+    simulator.html              # the simulated Alexa+ chat UI
+    app.ts                      # real MCP client + OAuth PKCE, in the browser
+    build.mjs                   # esbuild → web/dist/app.js (no CDN; bundle ships the SDK)
   test/
     tools/*.test.ts             # each tool against sqlite store, no network
-    auth/*.test.ts              # PKCE, resource param, 401 shape, token expiry
-    e2e/mcp-client.test.ts      # real MCP client over Streamable HTTP against local server
+    auth/*.test.ts              # PKCE, resource param, 401 shape, token expiry, CORS, discovery
+    web/*.test.ts               # simulate proxy + rule reasoner
+    e2e/mcp-client.test.ts      # real MCP client over Streamable HTTP; also resource templates
+    fixtures/tools-list.json    # frozen tool contract — regenerate only deliberately
   scripts/
-    smoke.mjs                   # MCP client: initialize → tools/list → the sangeet flow
-    seed.mjs                    # demo user + wardrobe + pre-rendered looks
+    smoke.ts                    # MCP client: initialize → tools/list → the sangeet flow
+    seed.ts                     # demo user + wardrobe + pre-rendered looks
+    ensure-table.ts             # create the DynamoDB table (idempotent)
+    render-one.ts               # render a single look to eyeball it
+    bench-compose.ts            # sharp compare-sheet timing
+    test-dynamo.mjs             # spin up DynamoDB Local + run the Store contract
   docs/
     demo-script.md              # the 3-minute video, shot by shot
     friction-log.md             # REQUIRED FORMAT, append as you go (10 % bonus)
@@ -411,9 +427,15 @@ moot until/unless that changes. Left here only as a record of what it would have
   tool call. Return cached URLs; enqueue on miss.
 - **`401` must NOT carry `WWW-Authenticate`.** This contradicts the MCP spec's default
   guidance and most SDK middleware adds it. Strip it explicitly and test for absence.
-- **`resource` parameter is mandatory** on both `/authorize` and `/token`, must equal the
-  canonical MCP URL exactly (scheme, host, path, no trailing slash). Decide the canonical
-  form once, put it in config, assert it in tests.
+- **`resource` parameter** must equal the canonical MCP URL exactly (scheme, host, path, no
+  trailing slash). Decide the canonical form once, put it in config, assert it in tests.
+  **As implemented (deliberate, audited 2026-09-07):** *required* on `/authorize` — a
+  missing or mismatched value is rejected with `invalid_target`; on `/token` it is
+  *validated if present but not required*. RFC 8707 says a client SHOULD send it on the
+  token request, and hard-requiring it would break account linking with an opaque error if
+  Alexa+ omits it. Nothing is lost by being lenient there: the issued token's audience
+  comes from the stored auth-code record, not from what the client restates, so it's bound
+  correctly either way.
 - **Alexa+ only re-reads tools on deploy.** Editing a description locally changes nothing
   in the simulator until `alexa-ai deploy`.
 - **Streamable HTTP stateless mode** — no `Mcp-Session-Id` affinity, so App Runner can

@@ -88,6 +88,33 @@ describe("real MCP client over Streamable HTTP", () => {
     expect(["rendering", "done"]).toContain((preview.structuredContent as { status: string }).status);
     await client.close();
   });
+
+  // Regression: `wardrobe://looks/{lookId}` was registered by passing the raw
+  // string, which the SDK treats as a *fixed* URI — templates/list came back
+  // empty and reading an actual look id returned "not found". It has to be a
+  // ResourceTemplate.
+  it("exposes wardrobe://looks/{lookId} as a real template that resolves", async () => {
+    const client = await connect();
+    const saved = await client.callTool({
+      name: "save_look",
+      arguments: { garmentId: "dress-magenta-wrap-01", label: "resource test" },
+    });
+    const { lookId } = saved.structuredContent as { lookId: string };
+
+    const templates = await client.listResourceTemplates();
+    expect(templates.resourceTemplates.map((t) => t.uriTemplate)).toContain("wardrobe://looks/{lookId}");
+
+    const read = await client.readResource({ uri: `wardrobe://looks/${lookId}` });
+    const body = JSON.parse((read.contents[0] as { text: string }).text) as { lookId: string };
+    expect(body.lookId).toBe(lookId);
+
+    // …and the template's list callback enumerates real looks, not the literal braces.
+    const listed = await client.listResources();
+    expect(listed.resources.map((r) => r.uri)).toContain(`wardrobe://looks/${lookId}`);
+    expect(listed.resources.map((r) => r.uri)).not.toContain("wardrobe://looks/{lookId}");
+
+    await client.close();
+  });
 });
 
 function sortedKeys(obj: Record<string, unknown>): string[] {

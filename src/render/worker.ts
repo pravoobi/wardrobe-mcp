@@ -73,7 +73,7 @@ export async function createBrowserWorker(): Promise<BrowserWorker> {
         }, garmentId);
 
         // Wait for the composite canvas to stop changing.
-        await waitForStableCanvas(page, Number(process.env.RENDER_SETTLE_MS ?? 45_000));
+        await waitForStableCanvas(page, config.renderSettleMs);
 
         const dataUrl = await page.evaluate(() => {
           const c = Array.from(document.querySelectorAll("canvas")).sort(

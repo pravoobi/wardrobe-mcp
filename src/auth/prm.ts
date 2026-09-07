@@ -31,4 +31,13 @@ export function mountDiscovery(app: Hono): void {
 
   app.get("/.well-known/oauth-authorization-server", (c) => c.json(asMetadata));
   app.get("/.well-known/oauth-protected-resource", (c) => c.json(prmMetadata));
+
+  // RFC 9728 §3.1: when the resource isn't at the root, its metadata is also
+  // discoverable at /.well-known/oauth-protected-resource + the resource path.
+  // MCP Inspector probes exactly this and got a 404 before it was added; Amazon
+  // only documents the bare path, so serve both.
+  const resourcePath = new URL(config.canonicalUrl).pathname.replace(/\/$/, "");
+  if (resourcePath && resourcePath !== "/") {
+    app.get(`/.well-known/oauth-protected-resource${resourcePath}`, (c) => c.json(prmMetadata));
+  }
 }
