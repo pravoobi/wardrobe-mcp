@@ -30,6 +30,23 @@ export function storeContract(getStore: () => Store): void {
     expect((await s.getUser("u2"))?.primaryPhotoId).toBe("p2");
   });
 
+  // Regression: SQLite's addPhoto used a plain INSERT with no conflict
+  // handling, so re-running `npm run seed` against an already-seeded database
+  // (the exact first thing a new contributor following the README does twice)
+  // crashed with a raw UNIQUE constraint error. DynamoDB's PutItem always
+  // overwrites, so the two backends silently disagreed until this was added.
+  it("photos: adding the same id twice upserts instead of throwing", async () => {
+    const s = getStore();
+    await s.upsertUser({ id: "u2b", displayName: "Two B", createdAt: iso() });
+    await s.addPhoto({ id: "p1", userId: "u2b", s3Key: "a", width: 1, height: 2, isPrimary: true });
+    await expect(
+      s.addPhoto({ id: "p1", userId: "u2b", s3Key: "a-reseeded", width: 3, height: 4, isPrimary: true }),
+    ).resolves.not.toThrow();
+    const photos = await s.listPhotos("u2b");
+    expect(photos).toHaveLength(1);
+    expect(photos[0]).toMatchObject({ s3Key: "a-reseeded", width: 3, height: 4 });
+  });
+
   it("wardrobe: add is idempotent per (user, garment)", async () => {
     const s = getStore();
     await s.upsertUser({ id: "u3", displayName: "Three", createdAt: iso() });

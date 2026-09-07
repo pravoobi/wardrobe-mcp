@@ -148,10 +148,15 @@ export class SqliteStore implements Store {
     if (photo.isPrimary) {
       this.db.prepare("UPDATE photos SET isPrimary = 0 WHERE userId = ?").run(photo.userId);
     }
+    // Upsert by id, matching DynamoDB's PutItem (always overwrites) — re-seeding
+    // with the same photo id must succeed, not throw a UNIQUE constraint error.
     this.db
       .prepare(
         `INSERT INTO photos (id, userId, s3Key, width, height, isPrimary)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           userId = excluded.userId, s3Key = excluded.s3Key, width = excluded.width,
+           height = excluded.height, isPrimary = excluded.isPrimary`,
       )
       .run(
         photo.id,

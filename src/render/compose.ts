@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 
 export const LOOK_W = 720;
 export const LOOK_H = 960;
@@ -118,7 +118,7 @@ export async function composeCompareSheet(cards: CompareCard[]): Promise<Buffer>
     </svg>`,
   );
 
-  const photos: sharp.OverlayOptions[] = [];
+  const photos: OverlayOptions[] = [];
   for (let i = 0; i < n; i++) {
     const img = await sharp(cards[i]!.webp).resize(cellW, cellH, { fit: "cover" }).toBuffer();
     photos.push({ input: img, top: pad, left: pad + i * (cellW + pad) });
