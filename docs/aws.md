@@ -85,7 +85,17 @@ instead of an actual CloudFront domain — `S3Storage` only ever uses this value
 prefix, so this is a valid HTTPS image URL today and a one-line env-var swap once
 CloudFront clears, no code change.
 
-**Blocked, no workaround:** App Runner hosting itself, and the Phase 5 simulator's
-Bedrock reasoning loop. An AWS Support case covering all three has been filed; retry the
-exact `apprunner create-service` / `cloudfront create-distribution` calls in this file
-once it clears.
+**Blocked, no AWS-side workaround:** App Runner hosting itself. An AWS Support case
+covering all three (App Runner, CloudFront, Bedrock) has been filed; retry the exact
+`apprunner create-service` / `cloudfront create-distribution` calls in this file once it
+clears. (The Bedrock reasoning loop has a non-AWS workaround — see friction log #9's
+"Workaround" and `src/web/ruleReasoner.ts`.)
+
+**Interim remote HTTPS URL (non-AWS):** `cloudflared tunnel --url http://localhost:3000`
+gives a real public HTTPS URL independent of App Runner — verified 2026-09-07: real OAuth
+2.1 PKCE flow + `tools/call` round trip in ~150 ms through it. See the README's "Expose
+it for Alexa+" note for the exact env vars (`MCP_CANONICAL_URL` must match the tunnel
+hostname, `ALLOW_DEV_TOKENS=false`). Not a substitute for the App Runner deploy — no
+`min instances = 1` warm-start guarantee, the free quick-tunnel URL is random and not
+production-stable — but it satisfies "reachable at a remote HTTPS URL" for testing and,
+if the verification case isn't resolved by the deadline, as a demo fallback.

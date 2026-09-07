@@ -94,7 +94,13 @@ Dev shortcut: `Authorization: Bearer dev_praveen` works when `ALLOW_DEV_TOKENS=t
 (auto-off when `NODE_ENV=production`). Point MCP Inspector at `http://localhost:3000/mcp`
 and it runs the full PKCE dance.
 
-Expose it for Alexa+: `cloudflared tunnel --url http://localhost:3000`
+Expose it for Alexa+: `cloudflared tunnel --url http://localhost:3000`. When you do,
+restart the dev server with `MCP_CANONICAL_URL` set to the tunnel's `https://…` hostname
+(the OAuth `resource` param must match it exactly) and `ALLOW_DEV_TOKENS=false` (a
+publicly reachable instance shouldn't accept `dev_*` bearer tokens). Verified
+2026-09-07: real OAuth 2.1 PKCE + `tools/call` round trip in ~150 ms through a quick
+tunnel — this is currently the fastest path to a genuine remote HTTPS URL while the
+App Runner deploy is blocked (see `docs/aws.md`).
 
 ## Verify
 
