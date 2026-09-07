@@ -23,32 +23,69 @@ For each: **used for** · **what worked** · **what needs work** · **onboarding
 
 - _pending — Phase 1 manual run._
 
-## `alexa-ai` CLI
+## `alexa-ai` CLI / Alexa+ add-ons console
 
-- _pending — Phase 0._
+- **Used for** — was going to be Phase 4 (create + deploy the Alexa+ add-on).
+- **What worked** — nothing yet; never got past the console.
+- **What needs work** — `/alexa/console/ask/addons#/` shows "coming soon," and the docs
+  separately say the MCP Toolkit is "available for select partners only." The public
+  quickstart reads as if this is self-serve GA (`alexa-ai configure` → `new mcp` →
+  `deploy`); there's no mention anywhere in the quickstart that it's an allowlisted
+  partner program. Pivoted to Devpost's officially-sanctioned simulated-experience path.
+- **Onboarding** — Blocked at step 0.
+- **Would use again?** — Can't evaluate — never got access.
 
 ## AWS App Runner
 
 - **Used for** — hosting the container from an ECR image (`apprunner.yaml` + `Dockerfile`).
 - **What worked** — image → HTTPS service with autoscaling and a managed cert is genuinely
-  a few clicks; `min instances = 1` is the one setting that matters for the 500 ms budget.
-- **What needs work** — no way to run a one-off "migrate" task (we ship `npm run aws:table`
-  as a separate step); build-from-source is Node-version-pinned and lagged what we needed,
-  so image-based is the only sane path.
-- **Would use again?** — Yes for a demo; a bigger service would want ECS/Fargate for the
-  task-runner and networking control.
+  a few clicks, in principle; `min instances = 1` is the one setting that matters for the
+  500 ms budget.
+- **What needs work** — `create-service` on a freshly created account (ECR, DynamoDB, S3,
+  IAM roles all worked fine minutes earlier) failed with `SubscriptionRequiredException:
+  The AWS Access Key Id needs a subscription for the service` — no link, no indication of
+  what "subscription" means or how to get one. Turned out to be a new-account verification
+  hold (same class of issue as CloudFront below); found that connection only by noticing
+  the error shapes matched, not from anything AWS surfaced.
+- **Would use again?** — Untested end-to-end; the console-side promise is good, the
+  first-run experience for a brand-new account was not.
 
-## Amazon Bedrock (garment auto-tagging)
+## Amazon CloudFront
 
-- **Used for** — the one LLM call in the system: garment photo → `{name,color,category,
-  occasion[]}` at upload time (`ConverseCommand`, `amazon.nova-lite-v1:0`).
+- **Used for** — HTTPS edge delivery of rendered-look images in front of the S3 bucket.
+- **What needs work** — `create-distribution` on this same freshly created account failed
+  with `AccessDenied: Your account must be verified before you can add new CloudFront
+  resources. ... contact AWS Support.` At least this one names the real cause (unlike App
+  Runner's `SubscriptionRequiredException`), but there's no self-service path or ETA —
+  just "open a support case and wait." For a time-boxed hackathon, an unpredictable
+  verification SLA on a core "ship it live" service is a real risk; we worked around it by
+  pointing `CLOUDFRONT_BASE_URL` straight at the S3 bucket's own HTTPS endpoint, which the
+  code treats identically since it's just a URL prefix.
+- **Would use again?** — Yes, once verified — the workaround is one env var away from the
+  real thing, no code change needed either way.
+
+## Amazon Bedrock (garment auto-tagging + the Phase 5 simulator's reasoning loop)
+
+- **Used for** — the one-time LLM call for garment photo → `{name,color,category,
+  occasion[]}` (`ConverseCommand`, `amazon.nova-lite-v1:0`); later, the same pattern for
+  Phase 5's tool-selection loop for the simulated Alexa+ web app.
 - **What worked** — the Converse API's `{ image: { format, source: { bytes } } }` content
   block is clean; `temperature: 0` + a JSON-only system prompt is reliable enough that a
-  `zod` parse on the reply is all the guarding needed.
-- **What needs work** — model access is opt-in per-region per-model in the console before
-  the API works at all (opaque `AccessDeniedException` until you do); no native
-  "respond as JSON schema" mode, so we string-slice `{ … }` out of the reply.
-- **Would use again?** — Yes.
+  `zod` parse on the reply is all the guarding needed. Model access (`amazon.nova-lite-v1:0`,
+  `us-east-1`) was already granted when first checked, and a plain `Converse` call worked.
+- **What needs work** — Two days later, with zero code or IAM changes, the *identical*
+  request started failing: `ValidationException: Operation not allowed` — reproduced on
+  both `Converse` and the raw `InvokeModel`, and on both Nova Lite and Claude Haiku,
+  ruling out anything model-specific. This landed the same day App Runner and CloudFront
+  started refusing with account-verification errors, which is the more likely explanation
+  than three coincidental unrelated failures — but Bedrock's error message gives no hint
+  it's the same root cause; `ValidationException: Operation not allowed` is generic and
+  unsearchable, versus CloudFront's much more actionable "must be verified" message. If
+  a new-account verification hold can silently widen mid-session to cover a service that
+  was working an hour before, that should be visible somewhere (a console banner, a
+  clearer error), not discovered by noticing three different services fail the same week.
+- **Would use again?** — Yes for the API itself; the account-trust/verification story
+  needs to be one visible, predictable thing, not three separate mystery errors.
 
 ## Amazon DynamoDB (`@aws-sdk/lib-dynamodb`)
 

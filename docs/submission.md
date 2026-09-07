@@ -2,7 +2,12 @@
 
 ## Tracks / challenges
 
-- **Track:** Alexa+ (self-hosted MCP server)
+- **Track:** Alexa+ — **simulated Alexa+ experience** (the add-ons/MCP Toolkit console is
+  partner-gated, "coming soon" — see friction log #8). Devpost rules confirm this path
+  counts as a full Alexa+ Track entry: same prizes, same judging criteria, exempt from the
+  runtime-technology-hook requirement, but the repo includes the simulation's source
+  (`web/simulator.html`) and the demo shows it running. The underlying MCP server + OAuth
+  2.1 AS are real and unaffected by this — only the Alexa+-branded packaging is skipped.
 - **Mini challenges:** AWS Builder + Open Source
 
 ## Open Source mini challenge — form fields
@@ -23,7 +28,7 @@
 
 `pravoobi/try-on` (the virtual try-on web app + its WebMCP tools) predates the hackathon.
 Built **during the window:** this entire repo — the MCP server, the OAuth 2.1 AS, the
-renderer bridge, the AWS deployment, and the Alexa+ add-on.
+renderer bridge, the AWS deployment, and the simulated Alexa+ web client.
 
 ## AWS Builder — integrations
 

@@ -114,8 +114,21 @@ negotiated protocol ≥ `2025-11-25`; every image tool a cache hit < 100 ms.
 - [x] **Phase 1** — skeleton MCP over Streamable HTTP, catalog + wardrobe + suggest tools, SQLite store, smoke flow.
 - [x] **Phase 2** — renderer bridge (`local` sharp compositor + opt-in `browser` bridge to the try-on app's WebMCP tools), `sharp` compare sheets, cache + queue, whole-catalog pre-render on seed, inline image blocks. Catalog synced from `pravoobi/try-on`. Tool schemas frozen.
 - [x] **Phase 3** — OAuth 2.1 AS (PKCE S256, `resource`, refresh rotation, every rejection-path tested); DynamoDB `Store` (single-table, parity suite vs SQLite, verified against DynamoDB Local); S3 + CloudFront render storage; Bedrock garment tagger (feature-flagged); `Dockerfile` (Playwright base) + `apprunner.yaml`.
-- [ ] **Phase 3 (ops)** — push image to ECR, stand up the App Runner service, measure p95 from us-east-1.
-- [ ] **Phase 4** — Alexa+ add-on (`alexa-ai deploy`).
+- [ ] **Phase 3 (ops)** — ECR image pushed, DynamoDB table + S3 bucket + IAM roles live in
+  `us-east-1`; Bedrock model access granted. **Blocked:** App Runner `CreateService` and
+  CloudFront `CreateDistribution` both refuse with account-verification errors (friction log
+  #9) — this AWS account needs an AWS Support verification pass before either can be created.
+  S3 serves images directly over HTTPS in the meantime (`CLOUDFRONT_BASE_URL` points at the
+  bucket; swapping to a real CloudFront domain later is a one-line env change, no code change).
+- [x] ~~**Phase 4** — Alexa+ add-on (`alexa-ai deploy`).~~ Skipped: the add-ons console is
+  partner-gated ("coming soon"), not self-serve. Pivoted to Phase 5 (Devpost's officially
+  sanctioned simulated-experience path — see friction log #8).
+- [ ] **Phase 5** — simulated Alexa+ web app (`web/simulator.html`): real OAuth 2.1 PKCE
+  login + the real `@modelcontextprotocol/sdk` client (bundled for the browser, no CDN) over
+  Streamable HTTP — verified working end-to-end in a real browser against the local server
+  (connects, lists all 9 tools). **Blocked:** the Bedrock reasoning step that decides which
+  tool to call next now fails account-wide (same verification issue as above, spread to
+  Bedrock mid-session — friction log #9), so the sangeet flow isn't demoable yet.
 
 The full sangeet flow (`npm run smoke`) runs end-to-end from a cold seed: `suggest_outfits`
 → `preview_look` → `save_look` → `compare_looks` → `record_reaction`, every image tool a

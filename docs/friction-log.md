@@ -124,3 +124,59 @@ Format per entry:
 - **Suggestion** — If Amazon needs a non-standard `401`, the quickstart should call this out
   in a red box with a snippet — and ideally Amazon's client should just follow the spec and
   read `WWW-Authenticate` / the well-known PRM path like everyone else.
+
+## 8. Alexa+ add-ons console is "coming soon" — MCP Toolkit is partner-gated, not just US-gated
+
+- **Task** — Phase 0 de-risk: confirm the Amazon developer account can actually create and
+  deploy an Alexa+ add-on before building Phase 4 around it.
+- **Steps** — Signed into the Amazon developer console at `/alexa/console/ask/addons#/`;
+  cross-checked the quickstart and overview docs.
+- **Expected vs actual** — Expected either full access, or an explicit country block (the
+  docs only say "available in the United States," which reads as a distribution/region
+  restriction). Actual: the console section itself shows **"coming soon,"** and the docs
+  separately state "Category SDK and MCP toolkit are available for select partners only" —
+  a partner allowlist, not a self-serve GA feature, independent of account region.
+- **Severity** — critical (blocks the entire planned Phase 4 for any non-partner
+  developer, US-based or not — this is not an India-specific problem).
+- **Workaround** — Devpost's official rules allow submitting a **simulated Alexa+
+  experience in a web app** instead, on the same track, same prizes, same judging
+  criteria (confirmed by reading the rules directly). Pivoted the plan: ship the real
+  MCP server + OAuth 2.1 (already exceeds what the simulated path requires) behind a
+  `web/simulator.html` chat UI instead of the real add-on packaging.
+- **Suggestion** — The quickstart/overview docs should say "partner-gated, request access
+  here" up front instead of only "available in the United States" — a hackathon
+  participant reads that as a region check they can pass, not an allowlist they can't get
+  onto in time, and burns Phase-0 time discovering the real blocker.
+
+## 9. New-account verification silently spreads across services mid-session — CloudFront, App Runner, then Bedrock
+
+- **Task** — Deploy to App Runner (Phase 3 ops), then build the Phase 5 simulator's
+  Bedrock-backed reasoning loop.
+- **Steps** — `cloudfront create-distribution` → `AccessDenied: Your account must be
+  verified`. `apprunner create-service` (same day) → `SubscriptionRequiredException`.
+  Both read as isolated, service-specific gates, so we proceeded with everything else
+  (ECR, DynamoDB, S3, IAM roles — all fine) and planned to route around them. Bedrock
+  `ConverseCommand`/`InvokeModel` calls **worked** at this point (`bedrockTagger.ts`'s
+  exact request pattern, tested via `aws bedrock-runtime invoke-model`, returned a real
+  completion) — no reason to suspect Bedrock.
+- **Expected vs actual** — Two days later, mid-session, the *same* Bedrock call
+  (identical request body, same model, same region) started failing with
+  `ValidationException: Operation not allowed` — for both `InvokeModel` and `Converse`,
+  and for two different models (Nova Lite and Claude Haiku), ruling out a model- or
+  API-specific cause. Nothing in our code or IAM policy changed between the two tests.
+- **Severity** — critical — this makes `bedrockTagger.ts` (shipped, tested-with-mocks
+  Phase 3 code) silently non-functional against the real account, not just the new
+  simulator work, and it wasn't caught by unit tests because they mock the Bedrock
+  client entirely.
+- **Workaround** — None yet; this is the same new-account verification hold as
+  CloudFront/App Runner (friction log — see App Runner/CloudFront ops notes), now
+  apparently widened to cover Bedrock too. Filed one AWS Support case covering all
+  three; until it clears, `TAGGING_PROVIDER=none` and the Phase 5 reasoning loop both
+  have to be demoed against expectations set accordingly, or with a temporary
+  rule-based stand-in.
+- **Suggestion** — If Bedrock access is genuinely tied to the same account-verification
+  gate as CloudFront/App Runner, the `ValidationException` message should say so
+  (`"Account pending verification"`) instead of the generic, unsearchable "Operation not
+  allowed" — and ideally a single account-level banner/console page would show every
+  service currently gated by an open verification case, instead of each one failing
+  independently and looking like unrelated bugs.

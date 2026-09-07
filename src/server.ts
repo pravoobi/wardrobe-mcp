@@ -13,6 +13,7 @@ import { getStore } from "./store/index.js";
 import { RenderQueue } from "./render/queue.js";
 import { createMcpServer } from "./mcp/server.js";
 import type { ToolContext } from "./mcp/context.js";
+import { mountSimulatorApi } from "./web/simulateApi.js";
 
 const store = getStore();
 const render = new RenderQueue(store);
@@ -27,6 +28,12 @@ mountOAuth(app, store);
 
 // Rendered looks (dev). Prod serves these from CloudFront.
 app.use("/renders/*", serveStatic({ root: config.localRenderDir, rewriteRequestPath: (p) => p.replace(/^\/renders/, "") }));
+
+// Phase 5: the simulated Alexa+ web app — a real MCP client + OAuth 2.1 PKCE
+// flow in the browser, talking to this same server's /mcp over Streamable HTTP.
+app.use("/simulator", serveStatic({ path: "./web/simulator.html" }));
+app.use("/simulator/*", serveStatic({ root: "./web", rewriteRequestPath: (p) => p.replace(/^\/simulator/, "") }));
+mountSimulatorApi(app, bearerAuth);
 
 async function handleMcp(c: import("hono").Context): Promise<Response> {
   const user = c.get("user");

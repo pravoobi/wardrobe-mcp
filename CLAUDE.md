@@ -45,7 +45,7 @@ plus a real Alexa+ add-on with OAuth 2.1, AWS-hosted.
 | **Product feedback** on every tool/API/SDK used; **friction log** worth up to **10 % judging bonus** | Devpost rules | Keep `docs/friction-log.md` from day one — every snag, in their required format (task / steps / expected vs actual / severity / workaround / suggestion). |
 | AWS Builder: documented AWS integrations | Devpost rules | App Runner + S3/CloudFront + DynamoDB + **Bedrock** (garment auto-tagging). Documented in `docs/aws.md` and the feedback answer. |
 | Pre-existing project must explain what was built in the window | Devpost rules | The server, auth, renderer bridge, AWS deploy, Alexa+ add-on are all new. try-on's page tools pre-exist and are named as such. |
-| Alexa+ add-ons distribute to **US** only; toolkit "available in the United States" | Alexa+ overview | Developer account/console may be US-gated. Verify on **Day 1**. If blocked: the rules allow a **simulated Alexa+ experience in a web app** as the fallback path — we'd still ship the real MCP server and drive it from a simulated Alexa+ chat UI (see Phase 5 fallback). |
+| Alexa+ add-ons distribute to **US** only; toolkit "available in the United States" | Alexa+ overview | **RESOLVED 2026-09-04, blocked:** console shows "coming soon" at `/alexa/console/ask/addons#/`; docs say "Category SDK and MCP toolkit are available for select partners only." Confirmed via Devpost rules the simulated-web-app path is official (same track, same prizes, same judging criteria, exempt from the runtime-technology-hook requirement but repo must include the simulation's source and the demo must show it working). **Decision: Phase 4 is dropped; Phase 5 is the plan.** We keep the real MCP server + OAuth 2.1 (already built, exceeds the simulated path's minimum bar) and drive it from `web/simulator.html`. |
 
 ## Architecture
 
@@ -262,15 +262,23 @@ companion UI which embeds try-on's existing upload flow. If that's too much, v1 
 Timeline: Sep 4 → Oct 23. Seven weeks; the plan below uses five, leaving two for the
 add-on review loop, the video, and the things Amazon's tooling will break.
 
-### Phase 0 — Day 1 (Sep 4–5): de-risk before writing code
-- Run `alexa-ai configure` from India with Praveen's Amazon developer account. **Does the
-  console accept the account? Does the web simulator open?** This decides Phase 5.
+### Phase 0 — Day 1 (Sep 4–5): de-risk before writing code — ✅ RESOLVED (blocked → Phase 5)
+- Checked the Alexa+ add-ons console (`/alexa/console/ask/addons#/`) with Praveen's Amazon
+  developer account: **"coming soon."** Docs: "Category SDK and MCP toolkit are available
+  for select partners only." No India-specific block found — it's a general partner
+  allowlist, account and region aside.
+- Verified against the Devpost rules (fetched 2026-09-04): the simulated Alexa+ web-app
+  path is official — same Alexa+ track, same prizes, same 4 judging criteria, exempt from
+  the runtime-technology-hook requirement, but the repo must include the simulation's
+  source and the demo must clearly show it working. India has no listed eligibility
+  restriction (only Cuba/Iran/North Korea/Russia/Crimea are excluded).
 - `npm create` the repo, MIT LICENSE, GitHub About → License set. Open-source mini
   challenge clock starts now; note the date in `docs/submission.md`.
 - Add root `LICENSE` to try-on as well (its packages have one, root does not).
 - Start `docs/friction-log.md` with the `alexa-ai configure` experience — first entry.
 - **Done when:** the alexa-ai CLI is authenticated (or the fallback is decided), repo is
-  public with license, friction log has ≥1 entry.
+  public with license, friction log has ≥1 entry. **→ Fallback decided: build Phase 5, skip
+  Phase 4's add-on packaging (`addon.json`, icons, `alexa-ai deploy`) entirely.**
 
 ### Phase 1 — Skeleton MCP over Streamable HTTP (Sep 6–10)
 - Hono + SDK `StreamableHTTPServerTransport` on `/mcp`, stateless.
@@ -314,27 +322,32 @@ add-on review loop, the video, and the things Amazon's tooling will break.
 - **Done when:** MCP Inspector completes OAuth against the *deployed* server and runs the
   flow; p95 < 500 ms measured from us-east-1 and recorded.
 
-### Phase 4 — Alexa+ add-on (Sep 25 – Oct 3)
-- `alexa-ai new mcp --name "Wardrobe" --locale en-US --mcp-server-url https://<host>/mcp`
-  (or the agent-assisted path — try it, it's a friction-log goldmine either way).
-- `addon.json`: name ≤ 30 chars, short description ≤ 123, full ≤ 4000, 3–4 example
-  phrases ≤ 200 chars ("Alexa, what should I wear to a sangeet?"), privacy policy + terms
-  URLs (host static pages on the same domain), icons in all 6 sizes light + dark, one
-  600×900 carousel image. Generate icons from one SVG with `sharp`.
-- `alexa-ai deploy` → account-link in the web simulator → run the demo script. Fix tool
-  descriptions for how Alexa+ actually phrases things; **every description change needs
-  a redeploy** — batch them.
-- Test on a physical Echo Show if one can be obtained; otherwise the simulator is the
-  demo surface and the video says so.
-- **Done when:** the sangeet flow works in the Alexa+ web simulator with account linking,
-  and a screen recording of it exists.
+### Phase 4 — Alexa+ add-on — **SKIPPED, see Phase 0 resolution above**
+Not pursuing: `alexa-ai new mcp`, `addon.json`, icons, `alexa-ai deploy`, account-link in
+the real web simulator. The console is partner-gated ("coming soon"); this whole phase is
+moot until/unless that changes. Left here only as a record of what it would have been.
 
-### Phase 5 — Fallback (only if Phase 0 blocks the console)
+### Phase 5 — Simulated Alexa+ web app (Sep 25 – Oct 3) — **now the plan, not a fallback**
 - Keep the real server. Build `web/simulator.html`: a chat UI that speaks Streamable HTTP
   to the server through a real MCP client (`@modelcontextprotocol/sdk` in the browser) with
   a small LLM loop (Bedrock via a thin proxy route — also strengthens AWS Builder) and a
   voice-styled transcript. Rules explicitly allow "a simulated Alexa+ experience in a web
   app." The video must be explicit that it's simulated. Do not pretend.
+- **Built 2026-09-07:** `web/app.ts` (bundled by `web/build.mjs`/esbuild into
+  `web/dist/app.js`, served at `/simulator/dist/app.js` — no CDN, the real SDK ships in the
+  bundle) does a real OAuth 2.1 PKCE login against this server's own `/oauth/*`, then the
+  real `Client` + `StreamableHTTPClientTransport` connects over Streamable HTTP with the
+  resulting Bearer token. **Verified in an actual browser**: Connect → `/oauth/authorize`
+  redirect → demo-user consent → code exchange → `connected — 9 tools`. The reasoning loop
+  (`src/web/simulateApi.ts`, `POST /api/simulate/turn`, Bedrock `ConverseCommand` with
+  `toolConfig` built from the live `tools/list` schemas) is wired and unit-tested with an
+  injected fake client (`test/web/simulateApi.test.ts`).
+- **Blocked, not a bug:** the real Bedrock call fails account-wide (`ValidationException:
+  Operation not allowed` — friction log #9), so the sangeet flow can't be demoed
+  end-to-end yet. Everything up to "which tool to call" is proven; only the LLM decision
+  step is waiting on AWS Support to clear the account.
+- **Done when:** the sangeet flow runs end-to-end in `web/simulator.html` against the
+  deployed server, with a screen recording of it.
 
 ### Phase 6 — Stretch, in priority order (Oct 4–12)
 1. **MCP Apps UI** (`@modelcontextprotocol/ext-apps`) — an interactive compare view

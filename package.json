@@ -12,8 +12,9 @@
     "wardrobe-mcp": "./dist/server.js"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').cpSync('src/catalog/catalog.json','dist/catalog/catalog.json')\"",
+    "dev": "npm run build:web && tsx watch src/server.ts",
+    "build:web": "node web/build.mjs",
+    "build": "npm run build:web && tsc -p tsconfig.build.json && node -e \"require('fs').cpSync('src/catalog/catalog.json','dist/catalog/catalog.json')\"",
     "start": "node dist/server.js",
     "seed": "tsx scripts/seed.ts",
     "smoke": "tsx scripts/smoke.ts",
@@ -38,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "esbuild": "^0.28.2",
     "playwright": "^1.62.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",

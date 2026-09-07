@@ -15,6 +15,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --include=dev
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
+COPY web ./web
 RUN npm run build
 
 # ---- runtime ----
@@ -23,6 +24,7 @@ FROM base AS runtime
 ENV PORT=3000
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/web ./web
 COPY package.json ./
 # Chromium is already in the base image; point Playwright at it.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright

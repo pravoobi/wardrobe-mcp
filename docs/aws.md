@@ -62,3 +62,30 @@ recorded here once the service is up.
 | `suggest_outfits` | ~25 ms | _pending_ |
 | `preview_look` (cache hit) | ~25 ms | _pending_ |
 | `compare_looks` (cache hit) | ~20 ms | _pending_ |
+
+## Account-verification blocker (2026-09-07)
+
+Everything above except App Runner and CloudFront is live in this account (`064308050230`,
+`us-east-1`): ECR image `wardrobe-mcp:latest` pushed, DynamoDB table `wardrobe` ACTIVE,
+S3 bucket `wardrobe-looks-064308050230` (private, public-read bucket policy on objects
+only) serving rendered looks directly over HTTPS, IAM roles
+`wardrobe-mcp-apprunner-ecr-access` + `wardrobe-mcp-apprunner-instance` created, Bedrock
+model access granted for `amazon.nova-lite-v1:0`.
+
+`aws apprunner create-service` and `aws cloudfront create-distribution` both fail —
+`SubscriptionRequiredException` and `AccessDenied: Your account must be verified`,
+respectively. As of today, Bedrock (`Converse`/`InvokeModel`, both models tested) is
+**also** failing with `ValidationException: Operation not allowed`, despite working two
+days earlier — this reads as one account-wide new-account verification hold that's
+widened over time, not three unrelated bugs. Full detail and repro: friction log #9.
+
+**Interim workaround for image serving:** `CLOUDFRONT_BASE_URL` is set to the bucket's
+direct HTTPS endpoint (`https://wardrobe-looks-064308050230.s3.us-east-1.amazonaws.com`)
+instead of an actual CloudFront domain — `S3Storage` only ever uses this value as a URL
+prefix, so this is a valid HTTPS image URL today and a one-line env-var swap once
+CloudFront clears, no code change.
+
+**Blocked, no workaround:** App Runner hosting itself, and the Phase 5 simulator's
+Bedrock reasoning loop. An AWS Support case covering all three has been filed; retry the
+exact `apprunner create-service` / `cloudfront create-distribution` calls in this file
+once it clears.
