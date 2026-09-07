@@ -21,7 +21,34 @@ For each: **used for** · **what worked** · **what needs work** · **onboarding
 
 ## MCP Inspector
 
-- _pending — Phase 1 manual run._
+- **Used for** — Phase 1's "run it by hand" verification (v2.5.0, `--web`), against the
+  live cloudflared tunnel — real remote HTTPS, real `mcp-inspector-local` OAuth client,
+  not the `dev_*` shortcut.
+- **What worked** — its own OAuth-discovery requests (`/.well-known/oauth-*`) found and
+  read both documents correctly; the redesigned v2.5.0 UI (multi-server list, per-request
+  network log with expandable request/response detail) is a big step up from the older
+  single-server sidebar and made the actual bug (below) traceable at all.
+- **What needs work — found a real server bug through this, not an Inspector bug**: our
+  `POST /mcp` failed instantly from Inspector's web UI with an opaque `TypeError: Failed
+  to fetch` and no further detail. Traced it myself (page-context `fetch()` + manual
+  `curl -X OPTIONS` with an `Origin` header): the server had zero CORS configuration —
+  no preflight handler, no `Access-Control-Allow-Origin` anywhere. Every other
+  verification method we'd used (curl, our own same-origin simulator, the Node e2e
+  test's SDK client) is either server-side or same-origin, so none of them could have
+  caught a cross-origin-browser-client bug — Inspector's web UI is the first thing that
+  actually exercised that path. Fixed with `hono/cors` (friction log #10); worth noting
+  this is exactly the gap a widely-used debugging tool exists to catch, and did.
+- Separately, Inspector also probed `/.well-known/oauth-protected-resource/mcp` (a
+  path-suffixed PRM variant per RFC 9728) which 404'd — we only serve the bare path.
+  Didn't chase whether that's load-bearing for anything; noted for later.
+- **Onboarding** — Adding a Streamable HTTP server (name, transport dropdown, URL) is
+  three fields, no friction. Diagnosing the actual failure required manually reproducing
+  the request outside Inspector (page-context `fetch`, then `curl`) — the UI shows
+  "Failed"/"Error" with a timestamp and duration but the underlying browser network error
+  message it surfaces (`TypeError: Failed to fetch`) carries no actionable detail, which
+  is a browser/fetch-API limitation more than an Inspector one.
+- **Would use again?** — Yes — it's the reason this project's CORS gap got caught before
+  the deadline instead of after.
 
 ## `alexa-ai` CLI / Alexa+ add-ons console
 

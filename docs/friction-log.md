@@ -186,3 +186,47 @@ Format per entry:
   allowed" — and ideally a single account-level banner/console page would show every
   service currently gated by an open verification case, instead of each one failing
   independently and looking like unrelated bugs.
+
+## 10. No CORS support — MCP Inspector's web UI can't connect at all
+
+- **Task** — Phase 1's "also run MCP Inspector by hand" verification, finally done
+  (2026-09-07, against the live cloudflared tunnel — real remote HTTPS, real OAuth
+  client `mcp-inspector-local`, not `dev_*` shortcuts).
+- **Steps** — Added the server to Inspector as a Streamable HTTP connection and toggled
+  it on. Every server-side/`curl` test up to this point had passed (401 shape, discovery
+  docs, full PKCE loop, `tools/call`), so no reason to expect trouble.
+- **Expected vs actual** — Expected either a clean connect or a clear "needs auth"
+  prompt. Actual: Inspector's own OAuth-discovery GETs (`/.well-known/oauth-*`)
+  succeeded, but its actual `POST /mcp` transport call failed instantly with an opaque
+  browser-level `TypeError: Failed to fetch` — no status code, no body, nothing
+  server-side to debug from. Traced it myself with a page-context `fetch()` call plus a
+  manual `curl -X OPTIONS /mcp -H "Origin: ..."`: the server had **zero CORS
+  configuration** — `OPTIONS /mcp` 404'd (no preflight handler at all) and even the real
+  `POST` response carried no `Access-Control-Allow-Origin`. Every prior verification
+  (curl, our own same-origin `web/simulator.html`, the Node e2e test's SDK client) is
+  either server-side or same-origin, so none of them could have caught this — it only
+  bites a browser-based client on a *different* origin than the server, which is exactly
+  MCP Inspector's web UI, and exactly what a third-party web integration of this "self-
+  hosted MCP server" would be too.
+- **Severity** — important — silently blocks a standard, widely-used MCP debugging tool,
+  and would silently block any other cross-origin browser client the same way, with zero
+  actionable error surfaced to the person debugging it.
+- **Workaround/fix** — Added `hono/cors` as blanket middleware (`origin: "*"` — safe
+  here since auth is a Bearer token, not cookies, so there's no CSRF surface a wildcard
+  origin opens up). Verified with `curl -X OPTIONS` (204, proper `Access-Control-*`
+  headers) and confirmed the actual `POST /mcp` 401 now carries
+  `Access-Control-Allow-Origin: *` while still correctly carrying **no**
+  `WWW-Authenticate` (friction log #7's requirement — the two are independent, both hold
+  at once). `test/auth/bearer.test.ts` still passes unchanged.
+- **Open question, not fully chased down** — Inspector still showed "Failed" after the
+  CORS fix; my direct page-context `fetch()` to the same URL got a clean `401` with a
+  readable body, so the transport-level bug is fixed. Whatever's left is more likely an
+  Inspector-side "configure an OAuth client before connecting" step I didn't complete
+  (global "Client settings," not the per-server config) than a server bug — didn't have
+  time to run that down. Worth a fresh look before final submission if MCP Inspector
+  compatibility is claimed anywhere in the write-up.
+- **Suggestion** — The MCP Streamable HTTP spec (or the TypeScript SDK's server
+  transport) should either set permissive CORS by default for the `/mcp` endpoint or, at
+  minimum, the spec/quickstart docs should call out that CORS is the implementer's
+  responsibility — it's easy to build and fully verify a server with curl/server-side
+  clients and never notice browser-based clients can't reach it at all.

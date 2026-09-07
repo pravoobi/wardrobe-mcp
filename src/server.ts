@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -20,6 +21,22 @@ const render = new RenderQueue(store);
 const bearerAuth = makeBearerAuth(store);
 
 export const app = new Hono();
+
+// Bearer-token auth (not cookies), so a wildcard origin is safe — every route
+// still enforces its own auth regardless of who's asking. Without this, any
+// browser-based MCP client on a different origin (MCP Inspector's web UI,
+// found the hard way — its POST /mcp failed with an opaque "Failed to fetch",
+// no preflight handler, no Access-Control-Allow-Origin anywhere) can't
+// connect at all, even though curl/server-side clients work fine.
+app.use(
+  "*",
+  cors({
+    origin: "*",
+    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization", "Accept", "Mcp-Protocol-Version", "Mcp-Session-Id"],
+    exposeHeaders: ["Mcp-Session-Id"],
+  }),
+);
 
 app.get("/healthz", (c) => c.json({ ok: true, protocolMin: PROTOCOL_MIN }));
 
