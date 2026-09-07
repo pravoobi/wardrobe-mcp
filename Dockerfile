@@ -16,7 +16,11 @@ RUN npm ci --include=dev
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
 COPY web ./web
+COPY scripts ./scripts
 RUN npm run build
+# `build` (not `runtime`) is also the target `docker-compose.yml`'s one-off `seed`
+# service uses — it has tsx + devDependencies + scripts/, so `npx tsx scripts/seed.ts`
+# runs here without shipping any of that into the production image.
 
 # ---- runtime ----
 FROM base AS runtime

@@ -1,0 +1,47 @@
+# One-command local run — no AWS account needed. SQLite + local disk for
+# storage/renders, both persisted on the host so `docker compose up` after a
+# `down` picks up right where you left off.
+#
+#   docker compose up --build              # start the server at http://localhost:3000
+#   docker compose run --rm seed           # once, to get the demo user + pre-rendered looks
+#
+# Open http://localhost:3000/simulator afterwards for the simulated Alexa+ chat UI,
+# or point MCP Inspector at http://localhost:3000/mcp (Bearer dev_praveen works locally).
+
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    # The Dockerfile drops to the non-root `pwuser` for the real (App Runner) deploy,
+    # which fights bind-mount ownership across hosts (root on the host, or a UID that
+    # isn't 1001, ends up owning ./data and ./renders — `pwuser` then can't write to
+    # them). Root here is a local-dev-only convenience; the prod image is unaffected.
+    user: root
+    ports:
+      - "3000:3000"
+    environment:
+      STORE: sqlite
+      STORAGE: local
+      TAGGING_PROVIDER: none
+      ALLOW_DEV_TOKENS: "true"
+      MCP_CANONICAL_URL: http://localhost:3000/mcp
+    volumes:
+      - ./data:/app/data
+      - ./renders:/app/renders
+
+  # One-off: `docker compose run --rm seed`. Uses the `build` stage (has tsx +
+  # devDependencies + scripts/) rather than the slim `runtime` image.
+  seed:
+    build:
+      context: .
+      target: build
+    user: root
+    profiles: ["seed"]
+    environment:
+      STORE: sqlite
+      STORAGE: local
+    volumes:
+      - ./data:/app/data
+      - ./renders:/app/renders
+    command: ["npx", "tsx", "scripts/seed.ts"]

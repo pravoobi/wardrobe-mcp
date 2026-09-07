@@ -368,8 +368,16 @@ moot until/unless that changes. Left here only as a record of what it would have
 3. `plan_week({ events: [{day, occasion}] })` — one outfit per event, no repeats.
 
 ### Phase 7 — Ship (Oct 13–23)
-- README: diagram, GIF, one-command local run (`docker compose up` with sqlite + local
-  renders), Alexa+ add-on setup, AWS deploy notes.
+- README: diagram, GIF, one-command local run — ✅ **done 2026-09-07**:
+  `docker-compose.yml` (`app` + a one-off `seed` service on the `build` stage, since it
+  needs `tsx`/devDependencies/`scripts/` that the slim `runtime` image doesn't ship).
+  Verified clean end-to-end: `docker compose run --rm seed` → `docker compose up` →
+  seeded wardrobe readable over `/mcp`. Found and fixed a real cross-host bug along the
+  way: the Dockerfile's non-root `USER pwuser` (correct for the App Runner deploy) fights
+  bind-mount ownership on hosts where `./data`/`./renders` aren't owned by uid 1001 —
+  `docker-compose.yml` overrides `user: root` for local-dev convenience only; the actual
+  shipped image is untouched. Alexa+ add-on setup — dropped (Phase 4). AWS deploy notes:
+  done in `docs/aws.md`.
 - Demo video < 3 min: 0:00–0:20 hook (the voice flow, live), 0:20–1:40 full sangeet loop
   on screen, 1:40–2:20 the renderer bridge in one diagram, 2:20–2:50 AWS + open source +
   what's new vs try-on, 2:50 close. Record at 1080p, English VO, no music.

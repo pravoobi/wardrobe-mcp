@@ -78,6 +78,17 @@ app (cached under `data/assets/`). Render one look to eyeball it:
 `tsx scripts/render-one.ts dress-magenta-wrap-01 photo-01` (add `--browser` for the real
 bridge).
 
+**Or one command, no Node install needed:**
+
+```bash
+docker compose up --build          # http://localhost:3000
+docker compose run --rm seed       # once, in another terminal — demo user + pre-rendered looks
+```
+
+SQLite + local renders persist on the host under `./data` and `./renders` (both
+gitignored), so a later `docker compose up` picks up where you left off. `seed` uses the
+`build` image stage (has `tsx` + `scripts/`) rather than the slim production one.
+
 ## Auth (OAuth 2.1)
 
 A minimal OAuth 2.1 authorization server runs in the same process — exactly what Alexa+
