@@ -109,6 +109,50 @@ Format per entry:
   leaving controls `disabled` indefinitely — the silent wait is what made this so hard to
   attribute.
 
+### 4b. Reused-page renders all converge on the same (wrong) garment — missing a settle wait after photo load (2026-09-08)
+
+- **Task** — Batch-render all 8 catalog garments onto the demo photo (`scripts/seed.ts`,
+  `RENDER_MODE=browser`), reusing one long-lived Playwright page across calls instead of a
+  fresh page per render (model load is the expensive part; reopening it per garment is
+  wasteful).
+- **Steps** — Loaded the photo once, then called `apply_tryon` for garment A, waited, read
+  the canvas, called `apply_tryon` for garment B on the same page, waited, read again.
+  `apply_tryon` returned `{ok:true, applied:{id:<correct-id>}}` every time — no error
+  anywhere. Spent a long time chasing wrong leads before finding the real cause: ruled out
+  true concurrency (serialized renders with a promise chain — bug persisted), browser/
+  context/page reuse in every combination (fresh browser, fresh context, reused
+  browser — all failed identically), a garmentId mismatch (confirmed catalog IDs match
+  exactly, and the tool echoes the right ID back), redundant re-clicking of the photo
+  button, and several canvas-stability-polling schemes (all flaky and no more reliable than
+  a flat wait).
+- **Expected vs actual** — Expected each render to show its own requested garment. Actual:
+  every render **after the first** on a reused page showed the same (first) garment's
+  image, byte-identical (MD5-verified) regardless of which garmentId was requested for it.
+- **Root cause** — The photo-button click resolves as soon as the click event fires, not
+  once the app's photo-load handler has actually finished initializing the try-on pipeline
+  for that photo. The very first `apply_tryon` call was firing while that handler was still
+  settling, and whatever partial state resulted from that race stuck permanently — every
+  subsequent `apply_tryon` on that page kept compositing against the same stale state, no
+  matter the garment. A standalone script that happened to add a short wait after the photo
+  click (for unrelated reasons) never exhibited the bug; a faithful copy of its render logic
+  inside `worker.ts`'s actual module, missing only that wait, reproduced the bug every time
+  — isolating it to that one missing wait, not anything about module-vs-script execution.
+- **Severity** — critical — the batch-seed path (and any live `add_to_wardrobe`
+  pre-render) would have silently cached the wrong image for 7 of 8 garments, with no
+  error anywhere in the pipeline to catch it.
+- **Fix** — Add `await page.waitForTimeout(1_500)` immediately after the photo-load click,
+  before the first `apply_tryon` on that page (`src/render/worker.ts`). Verified reliable
+  across 3 repeated runs of a 3-garment sequential batch: distinct, correct MD5 per garment
+  every time.
+- **Suggestion** — (try-on) the photo-load handler could resolve a promise, or set a
+  `data-photo-ready` attribute, once it's actually done initializing — right now there is
+  no DOM-observable signal to wait on, which is what forced a fixed sleep instead of a
+  wait-for-condition. (Playwright/general) when driving a page as an agent would, "the
+  click resolved" and "the app finished reacting to the click" are easy to conflate, and
+  the failure mode here (plausible-looking success, wrong cached output, zero errors) is
+  the worst kind to debug — worth calling out explicitly in agentic-browser-automation
+  guidance.
+
 ## 5. WebMCP: `document.modelContext` is the provider server, not a client — no obvious "call a tool"
 
 - **Task** — From Playwright (acting as the agent), invoke a tool the page registered.

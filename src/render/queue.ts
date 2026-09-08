@@ -40,6 +40,12 @@ export class RenderQueue {
   private readonly storage: RenderStorage;
   private readonly mode: RenderMode;
   private browser?: Promise<BrowserWorker>;
+  // Renders run strictly one at a time, never concurrently. `browser` mode
+  // reuses a single long-lived page (see worker.ts) so concurrent calls would
+  // race on that one page's state regardless of cause; `local`/`stub` modes
+  // have no such hazard, but serializing them too costs nothing measurable
+  // and keeps one code path.
+  private chain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly store: Store,
@@ -84,7 +90,7 @@ export class RenderQueue {
 
     if (!this.inFlight.has(key)) {
       this.inFlight.add(key);
-      void this.run(key, input);
+      this.chain = this.chain.then(() => this.run(key, input));
     }
     return job;
   }

@@ -18,8 +18,10 @@ Builder** and **Open Source** mini challenges. MIT licensed.
 
 ![The sangeet flow in the simulated Alexa+ web app: suggest, preview, save, compare](docs/demo.gif)
 
-*Recorded 2026-09-07 against a locally-seeded server. The "Bedrock is unavailable" notices
-are real and honest, not staged — the account-verification blocker in
+*Recorded 2026-09-08 against a locally-seeded server with `RENDER_MODE=browser` — every
+preview is the real try-on pipeline compositing the garment onto the model photo, not the
+`local`-mode fallback (garment shown beside the photo). The "Bedrock is unavailable"
+notices are real and honest, not staged — the account-verification blocker in
 [`docs/aws.md`](docs/aws.md) was still open at recording time, so `src/web/ruleReasoner.ts`
 answered instead of real Bedrock. Same real MCP tools either way.*
 

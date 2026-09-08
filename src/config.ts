@@ -36,8 +36,6 @@ export const config = {
     }
     return v;
   })(),
-  /** How long the browser renderer waits for the try-on canvas to settle. */
-  renderSettleMs: Number(env("RENDER_SETTLE_MS", "45000")),
   taggingProvider: env("TAGGING_PROVIDER", "none") as "none" | "bedrock",
   tryonAppUrl: env("TRYON_APP_URL", "https://pravoobi.github.io/try-on/"),
   tryonAppVersion: env("TRYON_APP_VERSION", "dev"),

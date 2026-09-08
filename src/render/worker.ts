@@ -43,7 +43,7 @@ export async function createBrowserWorker(): Promise<BrowserWorker> {
 
   const pageUrl = `${config.tryonAppUrl.replace(/\/+$/, "")}/?present`;
 
-  async function freshPage(): Promise<Page> {
+  async function newPage(): Promise<Page> {
     const page = await browser.newPage({ viewport: { width: 960, height: 1400 } });
     await page.goto(pageUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await page.waitForFunction(
@@ -57,84 +57,67 @@ export async function createBrowserWorker(): Promise<BrowserWorker> {
     return page;
   }
 
+  // Reuse ONE page across every render() call instead of a fresh page per
+  // call — model load is the expensive part of the try-on pipeline, so
+  // reopening it per garment is wasteful. Track which photo is currently
+  // loaded so we only click the test-photo button when it's actually
+  // changing (see friction log #4b for the full debugging trail behind
+  // this shape).
+  let page: Promise<Page> | undefined;
+  let loadedPhotoKey: string | undefined;
+
   return {
     async render({ photoS3Key, garmentId }): Promise<Buffer> {
-      const page = await freshPage();
-      try {
+      const p = await (page ??= newPage());
+      if (photoS3Key !== loadedPhotoKey) {
         // Load the customer's photo. Test photos load by button; uploads go
         // through the file input.
         if (photoS3Key.startsWith("tryon:")) {
           const id = photoS3Key.slice("tryon:".length);
-          await page.getByRole("button", { name: id, exact: true }).click({ timeout: 120_000 });
+          await p.getByRole("button", { name: id, exact: true }).click({ timeout: 120_000 });
         } else {
           const { loadPhotoBytes } = await import("./assets.js");
           const bytes = await loadPhotoBytes(photoS3Key);
-          await page.setInputFiles('input[type="file"][accept*="image"]', {
+          await p.setInputFiles('input[type="file"][accept*="image"]', {
             name: "photo.jpg",
             mimeType: "image/jpeg",
             buffer: bytes,
           });
         }
-
-        await page.evaluate(async (gid) => {
-          const mc = (document as unknown as {
-            modelContext: { tools: Map<string, { execute(a: unknown): Promise<unknown> }> };
-          }).modelContext;
-          return mc.tools.get("apply_tryon")!.execute({ garmentId: gid });
-        }, garmentId);
-
-        // Wait for the composite canvas to stop changing.
-        await waitForStableCanvas(page, config.renderSettleMs);
-
-        const dataUrl = await page.evaluate(() => {
-          const c = Array.from(document.querySelectorAll("canvas")).sort(
-            (a, b) => b.width * b.height - a.width * a.height,
-          )[0];
-          return c ? c.toDataURL("image/png") : null;
-        });
-        if (!dataUrl) throw new Error("no try-on canvas found after apply_tryon");
-        return Buffer.from(dataUrl.split(",")[1]!, "base64");
-      } finally {
-        await page.close();
+        loadedPhotoKey = photoS3Key;
+        // Let the photo-load handler settle before the first apply_tryon.
+        // Without this, the very first render on a freshly-loaded photo can
+        // fire while the pipeline is still initializing for that photo, and
+        // every apply_tryon after it silently keeps rendering against that
+        // half-initialized state — same wrong (stale) canvas forever, no
+        // error. See friction log #4b.
+        await p.waitForTimeout(1_500);
       }
+
+      await p.evaluate(async (gid) => {
+        const mc = (document as unknown as {
+          modelContext: { tools: Map<string, { execute(a: unknown): Promise<unknown> }> };
+        }).modelContext;
+        return mc.tools.get("apply_tryon")!.execute({ garmentId: gid });
+      }, garmentId);
+
+      // Fixed wait for the try-on pipeline to finish compositing onto the
+      // canvas. There's no DOM signal to poll for completion, so this is a
+      // flat sleep rather than a wait-for-condition (see friction log #4b).
+      await p.waitForTimeout(6_000);
+
+      const dataUrl = await p.evaluate(() => {
+        const c = Array.from(document.querySelectorAll("canvas")).sort(
+          (a, b) => b.width * b.height - a.width * a.height,
+        )[0];
+        return c ? c.toDataURL("image/png") : null;
+      });
+      if (!dataUrl) throw new Error("no try-on canvas found after apply_tryon");
+      return Buffer.from(dataUrl.split(",")[1]!, "base64");
     },
 
     async close(): Promise<void> {
       await browser.close();
     },
   };
-}
-
-async function waitForStableCanvas(page: Page, budgetMs: number): Promise<void> {
-  const start = Date.now();
-  let last = "";
-  let stableSince = 0;
-  while (Date.now() - start < budgetMs) {
-    const sig = await page.evaluate(() => {
-      const c = Array.from(document.querySelectorAll("canvas")).sort(
-        (a, b) => b.width * b.height - a.width * a.height,
-      )[0];
-      if (!c) return "";
-      const g = c.getContext("2d");
-      // Sample a few pixels as a cheap change signature (WebGL canvases: skip).
-      try {
-        if (!g) return `${c.width}x${c.height}`;
-        const pts = [0.3, 0.5, 0.7].map((f) => {
-          const d = g.getImageData(Math.floor(c.width * f), Math.floor(c.height * f), 1, 1).data;
-          return `${d[0]},${d[1]},${d[2]}`;
-        });
-        return `${c.width}x${c.height}:${pts.join("|")}`;
-      } catch {
-        return `${c.width}x${c.height}`;
-      }
-    });
-    if (sig && sig === last) {
-      if (!stableSince) stableSince = Date.now();
-      if (Date.now() - stableSince > 2_500) return;
-    } else {
-      stableSince = 0;
-      last = sig;
-    }
-    await page.waitForTimeout(750);
-  }
 }

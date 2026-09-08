@@ -48,7 +48,12 @@ async function main(): Promise<void> {
   for (const g of catalog) {
     await render.enqueue({ userId: DEMO_USER, photoId: "photo-1", garmentId: g.id });
   }
-  await render.settle(120_000);
+  // RENDER_MODE=browser: 8 real try-on renders, correctly waited for, can
+  // exceed 120s total (each includes a full canvas-stability wait, not just
+  // "did it click ok") — 120s was cutting the last couple off mid-render and
+  // marking them "failed" purely from the timeout closing the browser
+  // underneath them, not a real failure.
+  await render.settle(240_000);
   await render.close();
 
   console.log(

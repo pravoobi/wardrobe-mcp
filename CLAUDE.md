@@ -403,13 +403,17 @@ moot until/unless that changes. Left here only as a record of what it would have
   bind-mount ownership on hosts where `./data`/`./renders` aren't owned by uid 1001 —
   `docker-compose.yml` overrides `user: root` for local-dev convenience only; the actual
   shipped image is untouched. Alexa+ add-on setup — dropped (Phase 4). AWS deploy notes:
-  done in `docs/aws.md`. GIF — `docs/demo.gif`, recorded 2026-09-07 in an actual browser
-  against a freshly-seeded local server (17 frames: suggest → preview → save → preview
-  another → save → compare), embedded at the top of the README. Recorded honestly with
-  the rule-based-fallback notice visible since Bedrock was still down at record time —
-  re-record once real Bedrock reasoning is back if a cleaner take is wanted, not
-  required. Diagram — the existing ASCII architecture diagram in the README was judged
-  sufficient; not redone as an image.
+  done in `docs/aws.md`. GIF — `docs/demo.gif`, re-recorded 2026-09-08 in an actual browser
+  against a freshly-seeded local server with `RENDER_MODE=browser` (15 frames: suggest →
+  preview → save → preview another → save → compare), embedded at the top of the README.
+  The 2026-09-07 version was recorded against `RENDER_MODE=local` — garment shown beside
+  the model, not on her — because `browser` mode was silently broken at the time (see
+  friction log #4a/#4b); this take uses the fixed renderer, so every preview genuinely
+  composites the garment onto the model. Recorded honestly with the rule-based-fallback
+  notice still visible since Bedrock was still down at record time — re-record once real
+  Bedrock reasoning is back if a cleaner take is wanted, not required. Diagram — the
+  existing ASCII architecture diagram in the README was judged sufficient; not redone as
+  an image.
 - Demo video < 3 min: 0:00–0:20 hook (the voice flow, live), 0:20–1:40 full sangeet loop
   on screen, 1:40–2:20 the renderer bridge in one diagram, 2:20–2:50 AWS + open source +
   what's new vs try-on, 2:50 close. Record at 1080p, English VO, no music.
@@ -452,6 +456,14 @@ moot until/unless that changes. Left here only as a record of what it would have
   prevents adapter creation; earlier advice in this file recommending it was wrong. Launch
   flags otherwise make no difference. Keep the browser alive between jobs (model load is
   the expensive part).
+- **Reused-page batch renders need a settle wait after photo load, or every render after
+  the first silently renders the wrong (stale) garment.** The photo-button click resolves
+  before the app's photo-load handler actually finishes initializing the pipeline; firing
+  `apply_tryon` before that finishes leaves the page stuck compositing against that first
+  half-initialized state forever — `apply_tryon` still returns `{ok:true}` with the correct
+  requested id, and a plausible-looking image still renders, it's just always the same one.
+  Fix: `await page.waitForTimeout(1_500)` right after the photo-load click, before the
+  first `apply_tryon` on that page. See friction log #4b.
 - **Catalog drift.** `catalog.json` is copied, not imported, from try-on (different repo,
   different build). Run `sync-catalog` before the demo and pin `tryonAppVersion` in the
   render cache key so a try-on deploy invalidates stale renders.
