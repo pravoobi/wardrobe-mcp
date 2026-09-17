@@ -91,6 +91,27 @@ covering all three (App Runner, CloudFront, Bedrock) has been filed; retry the e
 clears. (The Bedrock reasoning loop has a non-AWS workaround — see friction log #9's
 "Workaround" and `src/web/ruleReasoner.ts`.)
 
+**Retested 2026-09-14 — still blocked, no change.** All three calls re-run verbatim:
+`cloudfront create-distribution` still `AccessDenied: Your account must be verified`
+(identical message); `apprunner list-services` (a read-only call, lighter than
+`create-service`) now *also* throws `SubscriptionRequiredException`, where before only
+`create-service` had been tested; `bedrock-runtime converse` still `ValidationException:
+Operation not allowed`. One partial, misleading signal: `cloudfront list-distributions`
+now succeeds (`200`, `Quantity: 0`) where it previously wasn't tested — read access
+isn't gated by the same hold that blocks `create-distribution`, so a clean `list` call
+is **not** evidence the block has cleared. Support case still needs a human follow-up;
+no AWS Support API access from the CLI (`describe-cases` → `SubscriptionRequiredException`
+— that API itself needs a Business/Enterprise support plan, unrelated to the account-hold
+case already filed through the console).
+
+**Retested 2026-09-17 — still blocked.** A payment card was added to the account the
+night before, on the theory that missing billing info was the hold. `apprunner
+list-services` still `SubscriptionRequiredException`; `bedrock-runtime converse` still
+`ValidationException: Operation not allowed` — both identical to every prior test.
+`cloudfront create-distribution` not re-run this time (declined — no need to spin up a
+real distribution just to reconfirm a block that hasn't moved on the other two services).
+Adding a card alone did not clear it; the Support case is still the only lever.
+
 **Interim remote HTTPS URL (non-AWS):** `cloudflared tunnel --url http://localhost:3000`
 gives a real public HTTPS URL independent of App Runner — verified 2026-09-07: real OAuth
 2.1 PKCE flow + `tools/call` round trip in ~150 ms through it. See the README's "Expose
