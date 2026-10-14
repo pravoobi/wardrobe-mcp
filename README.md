@@ -1,5 +1,7 @@
 # wardrobe-mcp
 
+[![CI](https://github.com/pravoobi/wardrobe-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/pravoobi/wardrobe-mcp/actions/workflows/ci.yml)
+
 A **self-hosted MCP server** that gives Alexa+ a customer's wardrobe: what they own, what
 they've saved, what they could buy — and, the differentiator, what any of it **looks like
 on them**, rendered by the existing on-device virtual try-on pipeline

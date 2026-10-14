@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: typecheck, unit tests, smoke, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - name: smoke (boots the server, runs the full sangeet flow)
+        run: npm run smoke
+
+      - run: npm run build
+
+  dynamodb-parity:
+    name: Store contract vs DynamoDB Local
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      # scripts/test-dynamo.mjs starts/stops its own DynamoDB Local container.
+      - run: npm run test:dynamo
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build-only, not pushed anywhere -- this is exactly the step that
+      # would have caught friction log #11 (a stale image deployed without
+      # ever being rebuilt against current main).
+      - run: docker build --build-arg GIT_SHA=${{ github.sha }} -t wardrobe-mcp:ci .
