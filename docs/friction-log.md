@@ -260,6 +260,26 @@ Format per entry:
   allowed" — and ideally a single account-level banner/console page would show every
   service currently gated by an open verification case, instead of each one failing
   independently and looking like unrelated bugs.
+- **Resolution (2026-10-14, 5 weeks after filing)** — AWS Support's own words: the
+  account was "very new" and "does not meet the usage and billing history criteria
+  required to access these resources," access is normally granted "organically" over
+  time, but an exception request to their Service Team was possible. After confirming
+  the region (us-east-1) and giving a detailed use-case writeup, the exception was
+  granted for App Runner, CloudFront, and Bedrock standard-tier models (Nova Lite
+  included; higher-tier models like certain Claude models on Bedrock still need more
+  account history and weren't requested). Verified live, not just claimed: `apprunner
+  list-services` now succeeds, `bedrock-runtime converse` now gets as far as a
+  `ThrottlingException` (a quota limit, meaning the call is actually allowed) instead of
+  `ValidationException: Operation not allowed`, and `cloudfront create-distribution` was
+  re-run for real and created a live distribution (see `docs/aws.md`). A card was added
+  to the account 3 weeks before this cleared, which on its own did nothing — the
+  exception request is what actually moved it, not the billing info.
+- **Updated suggestion** — The blocker wasn't a bug to work around, it was an
+  undocumented new-account gate with no self-serve path and no visible queue position.
+  The fix was a plain-language support ticket asking for an exception, naming the exact
+  services/region/use-case — if a hackathon (or any time-boxed project) hits this,
+  file that ticket on day one, not after discovering the block organically; it took over
+  a month end-to-end.
 
 ## 10. No CORS support — MCP Inspector's web UI can't connect at all
 

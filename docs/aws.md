@@ -112,6 +112,33 @@ list-services` still `SubscriptionRequiredException`; `bedrock-runtime converse`
 real distribution just to reconfirm a block that hasn't moved on the other two services).
 Adding a card alone did not clear it; the Support case is still the only lever.
 
+## ✅ Resolved 2026-10-14 — account-verification hold cleared
+
+AWS Support reviewed the account standing and granted an exception for all three
+services in **us-east-1**. Confirmed live, not just claimed:
+
+- **App Runner** — `apprunner list-services` now succeeds (`{"ServiceSummaryList": []}`,
+  previously `SubscriptionRequiredException`).
+- **Bedrock** — `bedrock-runtime converse` against `amazon.nova-lite-v1:0` now passes
+  validation; it hit `ThrottlingException: Too many tokens per day` instead of
+  `ValidationException: Operation not allowed` — a quota message, which only fires once
+  the account is actually allowed to call the operation. Support's reply confirms this
+  covers standard-tier models (Nova Lite included) but **not** higher-tier models
+  (e.g. certain Claude models on Bedrock) — those need a higher account-standing
+  threshold and aren't in scope for this project anyway (`bedrockTagger.ts` only ever
+  calls Nova Lite).
+- **CloudFront** — `cloudfront create-distribution` succeeded for real. Live distribution:
+  **`E3SKL73S4R9ECD`**, domain **`dyswjdrhfb962.cloudfront.net`**, origin
+  `wardrobe-looks-064308050230.s3.us-east-1.amazonaws.com`. Status was `InProgress`
+  right after creation (CloudFront takes 5–15 min to finish deploying to all edge
+  locations) — confirm `Status: Deployed` before relying on it for the demo.
+
+**Follow-up still open:** swap `CLOUDFRONT_BASE_URL` from the S3-direct-endpoint interim
+workaround to `https://dyswjdrhfb962.cloudfront.net` (env-only change, no code), then
+run the App Runner deploy steps in this file for real (`create-service` was not attempted
+yet — confirming `list-services` access was enough to prove the block is gone without
+standing up billed compute before deliberately choosing to).
+
 **Interim remote HTTPS URL (non-AWS):** `cloudflared tunnel --url http://localhost:3000`
 gives a real public HTTPS URL independent of App Runner — verified 2026-09-07: real OAuth
 2.1 PKCE flow + `tools/call` round trip in ~150 ms through it. See the README's "Expose
