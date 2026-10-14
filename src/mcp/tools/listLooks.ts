@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ToolContext } from "../context.js";
+import { requireRead, type ToolContext } from "../context.js";
 import { toolResult } from "../responses.js";
 import { getGarment } from "../../catalog/catalog.js";
 import { publicUrlForKey } from "../../render/storage.js";
@@ -11,6 +11,8 @@ const Input = z.object(listLooksSchema);
 export type ListLooksInput = z.infer<typeof Input>;
 
 export async function listLooks(_input: ListLooksInput, ctx: ToolContext): Promise<CallToolResult> {
+  requireRead(ctx.user);
+
   const looks = await ctx.store.listLooks(ctx.user.userId);
 
   const structuredContent = {

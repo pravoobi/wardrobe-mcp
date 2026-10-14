@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ToolContext } from "../context.js";
+import { requireRead, type ToolContext } from "../context.js";
 import { toolResult, errorResult } from "../responses.js";
 import { getGarment } from "../../catalog/catalog.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -19,6 +19,8 @@ export async function previewLook(
   input: PreviewLookInput,
   ctx: ToolContext,
 ): Promise<CallToolResult> {
+  requireRead(ctx.user);
+
   const garment = getGarment(input.garmentId);
   const name = garment?.meta.name ?? input.garmentId;
 
@@ -28,7 +30,7 @@ export async function previewLook(
 
   if (!photo) {
     return errorResult(
-      "I don't have a photo of you yet. Add one in the Wardrobe companion app and I can show you the look.",
+      "I don't have a photo of you set up yet, so I can't show you a preview — that needs to be added on the account first.",
     );
   }
 

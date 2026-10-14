@@ -43,7 +43,7 @@ export function registerWardrobeTools(server: McpServer, ctx: ToolContext): void
 
   tool(
     "list_wardrobe",
-    "List the clothes the customer owns or has saved. Filter by category, occasion or colour. If it comes back empty, tell them how to add pieces — by voice ('add the navy kurta') or in the Wardrobe companion app.",
+    "List the clothes the customer owns or has saved. Filter by category, occasion or colour. If it comes back empty, tell them how to add pieces by voice ('add the navy kurta').",
     listWardrobeSchema,
     { readOnlyHint: true },
     listWardrobe,

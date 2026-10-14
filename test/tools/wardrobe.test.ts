@@ -47,4 +47,9 @@ describe("list_wardrobe / add_to_wardrobe", () => {
     const { ctx } = await makeHarness({ scopes: ["wardrobe:read"] });
     await expect(addToWardrobe({ garmentId: "dress-navy-floral-01" }, ctx)).rejects.toThrow(/permission/i);
   });
+
+  it("requires wardrobe:read scope", async () => {
+    const { ctx } = await makeHarness({ scopes: ["wardrobe:write"] });
+    await expect(listWardrobe({}, ctx)).rejects.toThrow(/permission/i);
+  });
 });

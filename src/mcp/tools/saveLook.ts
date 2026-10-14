@@ -17,7 +17,7 @@ export async function saveLook(input: SaveLookInput, ctx: ToolContext): Promise<
 
   const photo = await ctx.store.getPrimaryPhoto(ctx.user.userId);
   if (!photo) {
-    return errorResult("I need a photo of you before I can save a look. Add one in the companion app.");
+    return errorResult("I need a photo of you before I can save a look, and that needs to be added on the account first.");
   }
 
   const garment = getGarment(input.garmentId);

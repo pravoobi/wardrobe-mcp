@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ToolContext } from "../context.js";
+import { requireRead, type ToolContext } from "../context.js";
 import { toolResult } from "../responses.js";
 import { catalog } from "../../catalog/catalog.js";
 import { ADJACENT } from "./suggestOutfits.js";
@@ -40,6 +40,8 @@ const capitalize = (s: string): string => (s ? s[0]!.toUpperCase() + s.slice(1) 
  * `suggest_outfits`, simplified — no budget/colour inputs per the tool spec.
  */
 export async function planWeek(input: PlanWeekInput, ctx: ToolContext): Promise<CallToolResult> {
+  requireRead(ctx.user);
+
   const wardrobe = await ctx.store.listWardrobe(ctx.user.userId);
   const ownedIds = new Set(wardrobe.map((w) => w.garmentId));
   const pool: Garment[] = [

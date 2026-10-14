@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ToolContext } from "../context.js";
+import { requireRead, type ToolContext } from "../context.js";
 import { toolResult } from "../responses.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
@@ -16,6 +16,8 @@ export async function listWardrobe(
   input: ListWardrobeInput,
   ctx: ToolContext,
 ): Promise<CallToolResult> {
+  requireRead(ctx.user);
+
   const items = await ctx.store.listWardrobe(ctx.user.userId);
   const norm = (s: string) => s.toLowerCase();
 
@@ -42,7 +44,7 @@ export async function listWardrobe(
 
   if (items.length === 0) {
     return toolResult({
-      text: "Your wardrobe is empty. Add pieces by saying \"add the navy kurta to my wardrobe\", or upload your own in the Wardrobe companion app.",
+      text: "Your wardrobe is empty. Add pieces by saying something like \"add the navy kurta to my wardrobe.\"",
       structuredContent,
     });
   }

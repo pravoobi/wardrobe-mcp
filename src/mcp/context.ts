@@ -19,3 +19,9 @@ export function requireWrite(user: UserContext): void {
     throw new Error("This action needs the wardrobe:write permission.");
   }
 }
+
+export function requireRead(user: UserContext): void {
+  if (!user.scopes.includes("wardrobe:read")) {
+    throw new Error("This action needs the wardrobe:read permission.");
+  }
+}

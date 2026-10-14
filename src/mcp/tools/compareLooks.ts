@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ToolContext } from "../context.js";
+import { requireRead, type ToolContext } from "../context.js";
 import { toolResult, errorResult } from "../responses.js";
 import { getGarment } from "../../catalog/catalog.js";
 import { publicUrlForKey } from "../../render/storage.js";
@@ -21,6 +21,8 @@ export async function compareLooks(
   input: CompareLooksInput,
   ctx: ToolContext,
 ): Promise<CallToolResult> {
+  requireRead(ctx.user);
+
   const found: Look[] = [];
   const notFound: string[] = [];
   for (const id of input.lookIds) {

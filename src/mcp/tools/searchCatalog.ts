@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ToolContext } from "../context.js";
+import { requireRead, type ToolContext } from "../context.js";
 import { toolResult } from "../responses.js";
 import { searchCatalog as runSearch } from "../../catalog/searchCatalog.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -17,8 +17,10 @@ export type SearchCatalogInput = z.infer<typeof Input>;
 
 export async function searchCatalog(
   input: SearchCatalogInput,
-  _ctx: ToolContext,
+  ctx: ToolContext,
 ): Promise<CallToolResult> {
+  requireRead(ctx.user);
+
   const hits = runSearch(input).slice(0, 5);
 
   const structuredContent = {

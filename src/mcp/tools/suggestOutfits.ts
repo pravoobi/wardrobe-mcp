@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ToolContext } from "../context.js";
+import { requireRead, type ToolContext } from "../context.js";
 import { toolResult } from "../responses.js";
 import { catalog } from "../../catalog/catalog.js";
 import type { Garment } from "../../store/types.js";
@@ -44,6 +44,8 @@ export async function suggestOutfits(
   input: SuggestOutfitsInput,
   ctx: ToolContext,
 ): Promise<CallToolResult> {
+  requireRead(ctx.user);
+
   const occ = input.occasion.toLowerCase();
   const color = input.color?.toLowerCase();
   const prefer = input.prefer ?? "any";
