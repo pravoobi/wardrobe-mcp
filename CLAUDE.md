@@ -324,7 +324,7 @@ add-on review loop, the video, and the things Amazon's tooling will break.
 - **Done when:** the full sangeet flow runs in `scripts/smoke.mjs` end-to-end from a cold
   seed, with every image-returning tool answering from cache in < 100 ms.
 
-### Phase 3 — OAuth 2.1 + AWS (Sep 18–24)
+### Phase 3 — OAuth 2.1 + AWS (Sep 18–24) — ✅ DONE 2026-10-14
 - Auth exactly as specified above; tests for every rejection path (bad verifier, wrong
   resource, reused code, expired token, missing Bearer → 401 shape).
 - DynamoDB store impl (parity tests run the same suite against both stores). S3 +
@@ -335,7 +335,18 @@ add-on review loop, the video, and the things Amazon's tooling will break.
   us-east-1 CloudShell) — must be < 500 ms for every tool. App Runner region:
   **us-east-1**, since Alexa+ traffic is US.
 - **Done when:** MCP Inspector completes OAuth against the *deployed* server and runs the
-  flow; p95 < 500 ms measured from us-east-1 and recorded.
+  flow; p95 < 500 ms measured from us-east-1 and recorded. ✅ **Both satisfied
+  2026-10-14.** The account-verification hold that blocked this whole phase for over a
+  month (friction log #9) cleared via an AWS Support exception request — App Runner,
+  CloudFront, and Bedrock standard-tier models are all live in `us-east-1`. Deployed at
+  `https://ba93fetekm.us-east-1.awsapprunner.com`; a real OAuth 2.1 PKCE round trip +
+  the full sangeet tool sequence ran against it with the real
+  `@modelcontextprotocol/sdk` client (not just MCP Inspector, same underlying flow),
+  which surfaced and fixed 3 real deploy-only bugs (stale image missing `plan_week`, a
+  `RENDER_MODE` cache-key mismatch, a missing `s3:ListBucket` IAM grant — see
+  `docs/aws.md` and friction log #11). Latency measured from a real us-east-1 CloudShell,
+  not a proxy for it: `suggest_outfits` 90 ms (37–50 ms on repeat), `preview_look` cache
+  hit 127–152 ms, `compare_looks` cache hit 123 ms — all well under the 500 ms budget.
 
 ### Phase 4 — Alexa+ add-on — **SKIPPED, see Phase 0 resolution above**
 Not pursuing: `alexa-ai new mcp`, `addon.json`, icons, `alexa-ai deploy`, account-link in
