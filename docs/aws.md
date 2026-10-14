@@ -145,6 +145,13 @@ pure network distance (confirmed separately) — not a valid stand-in for the re
 us-east-1 vantage point. The next step is the `curl -w` pass from an actual us-east-1
 CloudShell session.
 
+**Redeployed 2026-10-14** with the `wardrobe:read` scope-enforcement fix (friction log
+applies retroactively — see the webmcp-guidelines review in commit history): rebuilt,
+pushed a new digest, `apprunner start-deployment`, confirmed `RUNNING` and `/healthz`
+healthy again. No behavior change for the real demo flow — the `/link` consent screen
+always grants both scopes by default, so this only matters for a hypothetical
+narrower-scope client.
+
 ## Latency
 
 `preview_look` / `compare_looks` / `suggest_outfits` measured with `curl -w` from a
