@@ -34,7 +34,12 @@ export async function addToWardrobe(
   // Background pre-render for every photo the user has — never in the request path.
   const photos = await ctx.store.listPhotos(ctx.user.userId);
   for (const photo of photos) {
-    void ctx.render.enqueue({ userId: ctx.user.userId, photoId: photo.id, garmentId: garment.id });
+    void ctx.render.enqueue({
+      userId: ctx.user.userId,
+      photoId: photo.id,
+      garmentId: garment.id,
+      renderSalt: photo.renderSalt,
+    });
   }
 
   const items = await ctx.store.listWardrobe(ctx.user.userId);

@@ -21,13 +21,17 @@ export async function saveLook(input: SaveLookInput, ctx: ToolContext): Promise<
   }
 
   const garment = getGarment(input.garmentId);
-  const renderKey = ctx.render.cacheKey(photo.id, input.garmentId);
+  if (!garment) {
+    return errorResult(`I don't have a garment with id "${input.garmentId}" in the catalog.`);
+  }
+  const renderKey = ctx.render.cacheKey(photo.id, input.garmentId, photo.renderSalt);
 
   // Make sure the render exists (cache hit is instant; miss enqueues).
   const preview = await ctx.render.preview({
     userId: ctx.user.userId,
     photoId: photo.id,
     garmentId: input.garmentId,
+    renderSalt: photo.renderSalt,
   });
 
   const look = await ctx.store.addLook({
@@ -51,7 +55,7 @@ export async function saveLook(input: SaveLookInput, ctx: ToolContext): Promise<
   }
 
   return toolResult({
-    text: `Saved as ${look.label ?? look.id}${garment ? ` — ${garment.meta.name}` : ""}. You have ${all.length} saved look${all.length === 1 ? "" : "s"}.`,
+    text: `Saved as ${look.label ?? look.id} — ${garment.meta.name}. You have ${all.length} saved look${all.length === 1 ? "" : "s"}.`,
     structuredContent: {
       lookId: look.id,
       label: look.label,

@@ -120,7 +120,7 @@ export async function suggestOutfits(
     top.map(async (c) => {
       let previewUrl: string | undefined;
       if (primaryPhoto) {
-        const key = ctx.render.cacheKey(primaryPhoto.id, c.garment.id);
+        const key = ctx.render.cacheKey(primaryPhoto.id, c.garment.id, primaryPhoto.renderSalt);
         const job = await ctx.store.getRenderJob(key);
         if (job?.status === "done") previewUrl = job.url;
       }

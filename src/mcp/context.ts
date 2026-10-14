@@ -14,14 +14,24 @@ export interface ToolContext {
   user: UserContext;
 }
 
+/**
+ * Thrown for an expected, safe-to-speak-aloud refusal (missing scope, bad
+ * input). The registerTools.ts catch-all shows `message` for these verbatim;
+ * anything else thrown (an AWS SDK exception, a store error) is logged with
+ * full detail server-side and answered with a generic message instead, so an
+ * internal exception's raw text — which can carry an account id or role ARN,
+ * as it did in practice (friction log #11) — never reaches the client.
+ */
+export class ToolError extends Error {}
+
 export function requireWrite(user: UserContext): void {
   if (!user.scopes.includes("wardrobe:write")) {
-    throw new Error("This action needs the wardrobe:write permission.");
+    throw new ToolError("This action needs the wardrobe:write permission.");
   }
 }
 
 export function requireRead(user: UserContext): void {
   if (!user.scopes.includes("wardrobe:read")) {
-    throw new Error("This action needs the wardrobe:read permission.");
+    throw new ToolError("This action needs the wardrobe:read permission.");
   }
 }

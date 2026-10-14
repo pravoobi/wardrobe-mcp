@@ -18,7 +18,7 @@ async function main(): Promise<void> {
 
   // Primary photo: the try-on app's bundled test photo. Swap for a real upload
   // via the companion UI (Phase 6). `tryon:<id>` is resolved by the renderer.
-  await store.addPhoto({
+  const photo = await store.addPhoto({
     id: "photo-1",
     userId: DEMO_USER,
     s3Key: "tryon:photo-01",
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   console.log(`Rendering ${catalog.length} looks (mode: ${process.env.RENDER_MODE ?? "local"})...`);
   const t0 = performance.now();
   for (const g of catalog) {
-    await render.enqueue({ userId: DEMO_USER, photoId: "photo-1", garmentId: g.id });
+    await render.enqueue({ userId: DEMO_USER, photoId: photo.id, garmentId: g.id, renderSalt: photo.renderSalt });
   }
   // RENDER_MODE=browser: 8 real try-on renders, correctly waited for, can
   // exceed 120s total (each includes a full canvas-stability wait, not just

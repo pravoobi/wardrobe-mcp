@@ -13,6 +13,7 @@ import {
   UpdateCommand,
   BatchWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import type { Store } from "./Store.js";
 import type {
@@ -159,7 +160,7 @@ export class DynamoDBStore implements Store {
     return photos.find((p) => p.isPrimary) ?? photos[0];
   }
 
-  async addPhoto(photo: Photo): Promise<Photo> {
+  async addPhoto(photo: Omit<Photo, "renderSalt">): Promise<Photo> {
     if (photo.isPrimary) {
       for (const p of await this.listPhotos(photo.userId)) {
         if (p.isPrimary) {
@@ -174,6 +175,13 @@ export class DynamoDBStore implements Store {
         }
       }
     }
+    // Preserve the existing renderSalt on a re-seed/re-upload of the same
+    // photo id, so previously-cached renders stay valid instead of silently
+    // orphaning under an old (now-unreachable) cache key.
+    const existing = await this.doc.send(
+      new GetCommand({ TableName: this.table, Key: { PK: `USER#${photo.userId}`, SK: `PHOTO#${photo.id}` } }),
+    );
+    const renderSalt = (existing.Item?.renderSalt as string | undefined) ?? randomBytes(16).toString("hex");
     await this.put({
       PK: `USER#${photo.userId}`,
       SK: `PHOTO#${photo.id}`,
@@ -182,6 +190,7 @@ export class DynamoDBStore implements Store {
       width: photo.width,
       height: photo.height,
       isPrimary: photo.isPrimary,
+      renderSalt,
     });
     if (photo.isPrimary) {
       await this.doc.send(
@@ -193,7 +202,7 @@ export class DynamoDBStore implements Store {
         }),
       );
     }
-    return photo;
+    return { ...photo, renderSalt };
   }
 
   // ---------- wardrobe ----------
@@ -428,6 +437,7 @@ function rowPhoto(userId: string, r: Record<string, unknown>): Photo {
     width: Number(r.width),
     height: Number(r.height),
     isPrimary: Boolean(r.isPrimary),
+    renderSalt: String(r.renderSalt ?? ""),
   };
 }
 

@@ -34,6 +34,10 @@ export interface Photo {
   width: number;
   height: number;
   isPrimary: boolean;
+  /** Store-generated, mixed into every render cache key for this photo so
+   * cache keys (and therefore render URLs) aren't guessable from just
+   * photoId + garmentId, which are both low-entropy and often public. */
+  renderSalt: string;
 }
 
 export type WardrobeItemSource = "catalog" | "upload";

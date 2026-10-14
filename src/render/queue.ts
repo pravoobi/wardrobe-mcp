@@ -15,6 +15,9 @@ export interface EnqueueInput {
   userId: string;
   photoId: string;
   garmentId: string;
+  /** `Photo.renderSalt` — required so cache keys (and render URLs) aren't
+   * guessable from photoId + garmentId alone. */
+  renderSalt: string;
 }
 
 export interface PreviewResult {
@@ -55,15 +58,15 @@ export class RenderQueue {
     this.storage = opts.storage ?? (this.mode === "stub" ? new MemoryStorage() : getStorage());
   }
 
-  cacheKey(photoId: string, garmentId: string): string {
+  cacheKey(photoId: string, garmentId: string, renderSalt: string): string {
     return createHash("sha256")
-      .update(`${photoId} ${garmentId} ${config.tryonAppVersion} ${this.mode}`)
+      .update(`${photoId} ${garmentId} ${renderSalt} ${config.tryonAppVersion} ${this.mode}`)
       .digest("hex")
       .slice(0, 32);
   }
 
   async preview(input: EnqueueInput): Promise<PreviewResult> {
-    const key = this.cacheKey(input.photoId, input.garmentId);
+    const key = this.cacheKey(input.photoId, input.garmentId, input.renderSalt);
     const job = await this.store.getRenderJob(key);
     if (job?.status === "done" && job.url) {
       const webp = await this.storage.getRender(key);
@@ -74,7 +77,7 @@ export class RenderQueue {
   }
 
   async enqueue(input: EnqueueInput): Promise<RenderJob> {
-    const key = this.cacheKey(input.photoId, input.garmentId);
+    const key = this.cacheKey(input.photoId, input.garmentId, input.renderSalt);
     const existing = await this.store.getRenderJob(key);
     if (existing && existing.status !== "failed") return existing;
 

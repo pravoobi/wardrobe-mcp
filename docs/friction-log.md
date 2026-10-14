@@ -369,3 +369,88 @@ Format per entry:
   `403`/`AccessDenied` on a `GetObject` the same as `NoSuchKey` for cache-read purposes —
   a permissions problem serious enough to need fixing shouldn't silently masquerade as
   "no cached render yet" either, so this needs a decision, not a blind catch-all.
+
+## 12. Render cache keys (and therefore render URLs) were computable offline, with no credentials
+
+- **Task** — Security review of the deployed app.
+- **Steps** — The cache key is `sha256(photoId + garmentId + tryonAppVersion +
+  mode).slice(0,32)`; the S3 bucket policy grants `s3:GetObject` to `Principal: "*"`
+  (needed so CloudFront can serve images without a signing layer). All four key inputs
+  are low-entropy and either public (`tryonAppVersion`, `mode`) or easily guessed
+  (`photoId`/`garmentId` — `seed.ts` always uses `"photo-1"`, and every garment id is
+  public catalog data). Computed the key for every catalog garment offline, with no
+  access to the service at all, and confirmed by downloading: every one matched a real
+  object in the live bucket.
+- **Expected vs actual** — The 32-hex-char key reads as "unguessable," but it isn't one —
+  it's a hash of mostly-public values, which is pseudonymization, not access control.
+  Anyone who knows (or guesses) a user's photo id and a garment id can fetch that
+  person's rendered try-on image with zero credentials.
+- **Severity** — critical for anything beyond a hackathon demo catalog — this is a photo
+  of a real person's body, served to anyone who can compute a hash.
+- **Fix** — Added `Photo.renderSalt`: a random value generated once per photo (by the
+  `Store`, never caller-supplied) and mixed into the cache key. `addPhoto` preserves the
+  existing salt across a re-seed/re-upload of the same photo id (SQLite: excluded from
+  the `ON CONFLICT` update; DynamoDB: read-before-write to reuse it) so repeat seeding
+  doesn't orphan already-cached renders. A migration backfills a real random salt for
+  any pre-existing SQLite row that predates this column.
+- **Operational note** — This changes the cache-key format, so **prod needs re-seeding**
+  after this deploys: the old (unsalted) cache keys are simply a different key space now,
+  not corrupted, but `preview_look`/`compare_looks` will see them as cache misses until
+  `scripts/seed.ts` is re-run against the deployed DynamoDB/S3 (same procedure as
+  `docs/aws.md`'s original prod-seed entry).
+- **Suggestion** — (general) a content-addressed cache key built from inputs an attacker
+  can enumerate is a common trap — it feels like a capability URL but isn't one. The
+  salt (or a signed URL / OAC + private bucket) is required, not optional, the moment
+  the photo behind it is a real person's.
+
+## 13. `garmentId` was never validated against the catalog before hitting the filesystem
+
+- **Task** — Same security review.
+- **Steps** — `preview_look` and `save_look` passed `input.garmentId` straight through
+  to the render pipeline with no check against the catalog. Verified live (local store):
+  a `garmentId` of `"../../../../../../tmp/pwned-<timestamp>"` was accepted, enqueued a
+  real render job, and reached `assets.ts`'s `cached()` helper, which joined it directly
+  into a filesystem path before fetching.
+- **Expected vs actual** — Expected a clean "not in the catalog" refusal. Actual: the
+  tool call succeeded (`{status:"rendering"}`), and a permanent `RENDER#` row (DynamoDB)
+  / `render_jobs` row (SQLite) got created for every distinct garbage value — these rows
+  have no TTL and nothing ever cleans them up, so this is also an unbounded storage-growth
+  and wasted-compute vector, not just a traversal primitive.
+- **Severity** — high. Today it only reaches a 404 (no file happened to exist at the
+  resolved path), but the primitive is real, and `assets.ts` is one refactor away from a
+  read that matters.
+- **Fix** — `preview_look`/`save_look` now call `getGarment(garmentId)` and refuse with a
+  normal tool error before enqueueing anything, matching what `add_to_wardrobe` already
+  did. Also hardened `assets.ts` itself (defense in depth, since validation living only
+  in the tool layer is one missed call site away from being bypassed again): every path
+  segment derived from a caller-supplied id now goes through `basename()` before being
+  joined onto a directory.
+- **Suggestion** — validate at the tool boundary for every id that flows into a file
+  path or cache key, not just the ones that happen to need it for UX reasons (a friendly
+  "garment not found" message) — the security property and the UX property look similar
+  but aren't the same check, and this bug shipped because only the UX one existed
+  (`add_to_wardrobe` has a nice error message; `preview_look`/`save_look` didn't, and
+  that was the only thing missing).
+
+## 14. Unexpected internal exceptions reached the MCP client verbatim
+
+- **Task** — Same security review, following directly from friction log #11's
+  `compare_looks` incident.
+- **Steps** — `registerTools.ts`'s per-tool `try/catch` returned `err.message` for
+  *anything* thrown, not just deliberate validation refusals. Friction log #11's S3
+  `AccessDenied` (naming the App Runner instance role's full ARN and the AWS account id)
+  reached the MCP client through exactly this path.
+- **Expected vs actual** — Expected internal exceptions to be opaque to the caller.
+  Actual: any unhandled exception from a store or render call — AWS SDK errors
+  especially — was shown to the client with full detail.
+- **Severity** — medium. Not itself a way in, but a reconnaissance gift to anyone
+  probing the server, and it already leaked real infrastructure identifiers once.
+- **Fix** — Added `ToolError` (`src/mcp/context.ts`), the one exception type a tool is
+  expected to throw for a safe-to-speak refusal (`requireRead`/`requireWrite` already did
+  this; nothing else in the codebase threw a message meant for the client — confirmed by
+  grepping every `throw new Error` site). `registerTools.ts`'s catch-all now shows
+  `ToolError` messages verbatim and masks everything else behind a generic message,
+  logging the real exception server-side with the tool name. Regression test
+  (`test/mcp/errorMasking.test.ts`) asserts both halves: a raw exception containing an
+  account id/ARN never reaches the client, and a deliberate `ToolError` (missing scope)
+  still does, verbatim.

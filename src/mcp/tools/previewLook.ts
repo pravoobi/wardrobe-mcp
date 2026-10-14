@@ -22,7 +22,10 @@ export async function previewLook(
   requireRead(ctx.user);
 
   const garment = getGarment(input.garmentId);
-  const name = garment?.meta.name ?? input.garmentId;
+  if (!garment) {
+    return errorResult(`I don't have a garment with id "${input.garmentId}" in the catalog.`);
+  }
+  const name = garment.meta.name;
 
   const photo = input.photoId
     ? (await ctx.store.listPhotos(ctx.user.userId)).find((p) => p.id === input.photoId)
@@ -38,6 +41,7 @@ export async function previewLook(
     userId: ctx.user.userId,
     photoId: photo.id,
     garmentId: input.garmentId,
+    renderSalt: photo.renderSalt,
   });
 
   if (result.status === "rendering") {

@@ -22,7 +22,8 @@ export interface Store {
 
   listPhotos(userId: string): Promise<Photo[]>;
   getPrimaryPhoto(userId: string): Promise<Photo | undefined>;
-  addPhoto(photo: Photo): Promise<Photo>;
+  /** `renderSalt` is store-generated, never caller-supplied — see Photo. */
+  addPhoto(photo: Omit<Photo, "renderSalt">): Promise<Photo>;
 
   listWardrobe(userId: string): Promise<WardrobeItem[]>;
   getWardrobeItem(userId: string, garmentId: string): Promise<WardrobeItem | undefined>;

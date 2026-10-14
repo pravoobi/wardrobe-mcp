@@ -192,10 +192,14 @@ async function seedDemo(): Promise<number> {
   const store = getStore();
   const render = new RenderQueue(store);
   await store.upsertUser({ id: "praveen", displayName: "Praveen", createdAt: new Date().toISOString() });
-  await store.addPhoto({ id: "photo-1", userId: "praveen", s3Key: "tryon:photo-01", width: 768, height: 1152, isPrimary: true });
-  for (const g of catalog) await render.enqueue({ userId: "praveen", photoId: "photo-1", garmentId: g.id });
+  const photo = await store.addPhoto({ id: "photo-1", userId: "praveen", s3Key: "tryon:photo-01", width: 768, height: 1152, isPrimary: true });
+  for (const g of catalog) {
+    await render.enqueue({ userId: "praveen", photoId: photo.id, garmentId: g.id, renderSalt: photo.renderSalt });
+  }
   await render.settle(120_000);
-  const jobs = await Promise.all(catalog.map((g) => store.getRenderJob(render.cacheKey("photo-1", g.id))));
+  const jobs = await Promise.all(
+    catalog.map((g) => store.getRenderJob(render.cacheKey("photo-1", g.id, photo.renderSalt))),
+  );
   const done = jobs.filter((j) => j?.status === "done").length;
   assert(done === catalog.length, `only ${done}/${catalog.length} renders completed`);
   return done;

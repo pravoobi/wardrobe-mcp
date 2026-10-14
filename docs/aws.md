@@ -173,6 +173,28 @@ India↔us-east-1 network distance, not server-side cost — the deployed servic
 responds in tens of milliseconds once you're actually in the right region. Phase 3's
 "Done when" criterion (< 500 ms from us-east-1, recorded) is now satisfied.
 
+## ⚠️ Prod needs re-seeding after the render-salt security fix (friction log #12)
+
+Render cache keys now include `Photo.renderSalt` (a random value generated once per
+photo) so they're no longer computable from public inputs alone — see friction log #12.
+This changes the cache-key format, so the renders seeded into prod on 2026-10-14 are
+now unreachable under their old (unsalted) keys — not corrupted, just a different key
+space. Re-run the same seed procedure used before:
+
+```bash
+STORE=dynamodb STORAGE=s3 RENDER_MODE=local \
+AWS_REGION=us-east-1 DYNAMODB_TABLE=wardrobe \
+S3_BUCKET=wardrobe-looks-064308050230 \
+CLOUDFRONT_BASE_URL=https://dyswjdrhfb962.cloudfront.net \
+npx tsx scripts/seed.ts
+```
+
+(`RENDER_MODE=local` to match what the deployed service itself uses — see the
+`RENDER_MODE` mismatch entry above; don't use `browser` for the prod seed.) The old,
+now-orphaned renders under the previous unsalted keys can be left alone in S3 — they're
+unreachable (nothing references their keys anymore) and harmless, just a few hundred KB
+of dead objects; not worth a cleanup pass for a hackathon catalog this small.
+
 ## Account-verification blocker (2026-09-07)
 
 Everything above except App Runner and CloudFront is live in this account (`064308050230`,

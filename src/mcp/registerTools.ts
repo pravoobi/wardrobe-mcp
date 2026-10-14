@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ToolContext } from "./context.js";
+import { ToolError, type ToolContext } from "./context.js";
 import { errorResult } from "./responses.js";
 
 import { listWardrobe, listWardrobeSchema } from "./tools/listWardrobe.js";
@@ -35,7 +35,13 @@ export function registerWardrobeTools(server: McpServer, ctx: ToolContext): void
         try {
           return await handler(args as never, ctx);
         } catch (err) {
-          return errorResult(err instanceof Error ? err.message : String(err));
+          if (err instanceof ToolError) return errorResult(err.message);
+          // An unexpected exception (AWS SDK, store, anything else) can carry
+          // internal detail — account ids, role ARNs, stack traces — that
+          // must never reach the client. Log it in full server-side; the
+          // caller gets a safe, generic message.
+          console.error(`tool "${name}" failed:`, err);
+          return errorResult("Something went wrong handling that request. Please try again.");
         }
       }) as never,
     );

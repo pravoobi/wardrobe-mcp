@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 import type { DatabaseSync as DatabaseSyncClass } from "node:sqlite";
 
@@ -48,7 +49,8 @@ export class SqliteStore implements Store {
         s3Key TEXT NOT NULL,
         width INTEGER NOT NULL,
         height INTEGER NOT NULL,
-        isPrimary INTEGER NOT NULL DEFAULT 0
+        isPrimary INTEGER NOT NULL DEFAULT 0,
+        renderSalt TEXT NOT NULL DEFAULT ''
       );
       CREATE TABLE IF NOT EXISTS wardrobe (
         id TEXT PRIMARY KEY,
@@ -108,6 +110,23 @@ export class SqliteStore implements Store {
         refreshHash TEXT
       );
     `);
+    // Migration for databases created before renderSalt existed.
+    // CREATE TABLE IF NOT EXISTS doesn't add columns to an already-existing
+    // table, so pre-existing dev databases need this ALTER once.
+    try {
+      this.db.exec("ALTER TABLE photos ADD COLUMN renderSalt TEXT NOT NULL DEFAULT ''");
+    } catch {
+      /* column already exists */
+    }
+    // Backfill any row left with the migration default — an empty salt would
+    // make that photo's render keys guessable again.
+    for (const row of this.db.prepare("SELECT id FROM photos WHERE renderSalt = ''").all() as {
+      id: string;
+    }[]) {
+      this.db
+        .prepare("UPDATE photos SET renderSalt = ? WHERE id = ?")
+        .run(randomBytes(16).toString("hex"), row.id);
+    }
   }
 
   async getUser(userId: string): Promise<User | undefined> {
@@ -144,16 +163,19 @@ export class SqliteStore implements Store {
     return row ? rowToPhoto(row) : undefined;
   }
 
-  async addPhoto(photo: Photo): Promise<Photo> {
+  async addPhoto(photo: Omit<Photo, "renderSalt">): Promise<Photo> {
     if (photo.isPrimary) {
       this.db.prepare("UPDATE photos SET isPrimary = 0 WHERE userId = ?").run(photo.userId);
     }
     // Upsert by id, matching DynamoDB's PutItem (always overwrites) — re-seeding
     // with the same photo id must succeed, not throw a UNIQUE constraint error.
+    // renderSalt is intentionally excluded from the conflict update so a
+    // re-seed of the same photo id keeps its original salt (and therefore its
+    // existing cache entries) instead of invalidating them on every reseed.
     this.db
       .prepare(
-        `INSERT INTO photos (id, userId, s3Key, width, height, isPrimary)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO photos (id, userId, s3Key, width, height, isPrimary, renderSalt)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            userId = excluded.userId, s3Key = excluded.s3Key, width = excluded.width,
            height = excluded.height, isPrimary = excluded.isPrimary`,
@@ -165,13 +187,18 @@ export class SqliteStore implements Store {
         photo.width,
         photo.height,
         photo.isPrimary ? 1 : 0,
+        randomBytes(16).toString("hex"),
       );
     if (photo.isPrimary) {
       this.db
         .prepare("UPDATE users SET primaryPhotoId = ? WHERE id = ?")
         .run(photo.id, photo.userId);
     }
-    return photo;
+    const row = this.db.prepare("SELECT * FROM photos WHERE id = ?").get(photo.id) as Record<
+      string,
+      unknown
+    >;
+    return rowToPhoto(row);
   }
 
   async listWardrobe(userId: string): Promise<WardrobeItem[]> {
@@ -423,6 +450,7 @@ function rowToPhoto(r: Record<string, unknown>): Photo {
     width: Number(r.width),
     height: Number(r.height),
     isPrimary: Number(r.isPrimary) === 1,
+    renderSalt: String(r.renderSalt),
   };
 }
 
