@@ -93,6 +93,18 @@ describe("ops endpoints", () => {
   // malformed/missing resource -- an unauthenticated POST with incomplete
   // form data crashed the request with an unhandled TypeError instead of a
   // clean 400.
+  it("rejects an oversized /link body with 413", async () => {
+    const res = await fetch(`${base}/link`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        "x-forwarded-for": "203.0.113.77",
+      },
+      body: new URLSearchParams({ client_id: "x".repeat(20_000) }),
+    });
+    expect(res.status).toBe(413);
+  });
+
   it("POST /link with a missing resource returns a clean 400, not a crash", async () => {
     const res = await fetch(`${base}/link`, {
       method: "POST",

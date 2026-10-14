@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { bodyLimit } from "hono/body-limit";
 import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { readFileSync } from "node:fs";
@@ -74,6 +75,15 @@ app.get("/version", (c) => c.json({ version: pkgVersion, gitSha: process.env.GIT
 app.use("/link", rateLimit({ windowMs: 60_000, max: 20, name: "/link" }));
 app.use("/oauth/token", rateLimit({ windowMs: 60_000, max: 20, name: "/oauth/token" }));
 app.use("/api/simulate/turn", rateLimit({ windowMs: 60_000, max: 20, name: "/api/simulate/turn" }));
+
+// Body size caps — every route here expects small JSON/form payloads
+// (OAuth params, a conversation turn, a tool call's arguments), never a file
+// upload, so a generous-but-bounded cap costs nothing legitimate and closes
+// off unbounded-body abuse.
+app.use("/link", bodyLimit({ maxSize: 16 * 1024 }));
+app.use("/oauth/token", bodyLimit({ maxSize: 16 * 1024 }));
+app.use("/api/simulate/turn", bodyLimit({ maxSize: 512 * 1024 }));
+app.use("/mcp", bodyLimit({ maxSize: 1024 * 1024 }));
 
 mountDiscovery(app);
 mountOAuth(app, store);
