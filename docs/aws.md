@@ -173,13 +173,20 @@ India↔us-east-1 network distance, not server-side cost — the deployed servic
 responds in tens of milliseconds once you're actually in the right region. Phase 3's
 "Done when" criterion (< 500 ms from us-east-1, recorded) is now satisfied.
 
-## ⚠️ Prod needs re-seeding after the render-salt security fix (friction log #12)
+## ✅ Deployed and re-seeded 2026-10-15 — render-salt security fix (friction log #12)
 
 Render cache keys now include `Photo.renderSalt` (a random value generated once per
 photo) so they're no longer computable from public inputs alone — see friction log #12.
-This changes the cache-key format, so the renders seeded into prod on 2026-10-14 are
-now unreachable under their old (unsalted) keys — not corrupted, just a different key
-space. Re-run the same seed procedure used before:
+Rebuilt (`GIT_SHA` now `40d1d08`), pushed, redeployed (`apprunner start-deployment`),
+re-seeded. Verified live, not just logged: queried DynamoDB for the demo photo's real
+`renderSalt`, computed the salted key offline, and confirmed it matches what
+`preview_look` actually returns (`2796e0ab6103f745b89923315553a31f.webp`) — the old
+unsalted key for the same garment (`0bda1125f08f147f0485ad81d005bb50`, computable by
+anyone with zero credentials) is now just orphaned dead data, not what's served. Also
+confirmed live: a path-traversal `garmentId` (`../../../../etc/passwd`) is cleanly
+refused instead of being accepted (friction log #13's fix).
+
+Re-seed procedure used:
 
 ```bash
 STORE=dynamodb STORAGE=s3 RENDER_MODE=local \
