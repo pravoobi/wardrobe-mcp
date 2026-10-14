@@ -152,8 +152,10 @@ negotiated protocol ≥ `2025-11-25`; every image tool a cache hit < 100 ms.
   real `@modelcontextprotocol/sdk` client, the whole sangeet sequence against the live service,
   found and fixed 3 real deploy-only bugs along the way (stale image missing `plan_week`,
   a `RENDER_MODE` cache-key mismatch, a missing `s3:ListBucket` IAM grant that broke
-  `compare_looks` on any true cache miss — see `docs/aws.md`). **Still open:** the required
-  < 500 ms latency numbers need measuring from an actual us-east-1 CloudShell, not yet done.
+  `compare_looks` on any true cache miss — see `docs/aws.md`). **Latency measured from a
+  real us-east-1 CloudShell**: `suggest_outfits` 90 ms (37–50 ms on repeat), `preview_look`
+  (cache hit) 127–152 ms, `compare_looks` (cache hit) 123 ms — all well under the 500 ms
+  budget. Phase 3 is fully done.
 - [x] ~~**Phase 4** — Alexa+ add-on (`alexa-ai deploy`).~~ Skipped: the add-ons console is
   partner-gated ("coming soon"), not self-serve. Pivoted to Phase 5 (Devpost's officially
   sanctioned simulated-experience path — see friction log #8).

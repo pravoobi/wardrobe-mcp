@@ -152,23 +152,26 @@ healthy again. No behavior change for the real demo flow — the `/link` consent
 always grants both scopes by default, so this only matters for a hypothetical
 narrower-scope client.
 
-## Latency
+## ✅ Latency — measured from us-east-1, 2026-10-14
 
-`preview_look` / `compare_looks` / `suggest_outfits` measured with `curl -w` from a
-us-east-1 CloudShell against the deployed URL must be < 500 ms for every tool. The
-authenticated round trip above is now fully working end-to-end, so this is unblocked —
-just not yet run from the right vantage point. Numbers recorded here once it is.
+`preview_look` / `compare_looks` / `suggest_outfits` measured with `curl -w` from a real
+AWS CloudShell session in `us-east-1` against the deployed URL — not this machine, not a
+proxy for it. A full OAuth 2.1 PKCE exchange (`openssl`-based, no Node needed in
+CloudShell) got a real access token, then each tool was called with the real JSON-RPC
+envelope over Streamable HTTP.
 
-| tool | local (this machine) | us-east-1 → App Runner |
+| tool | local (this machine, India) | **us-east-1 CloudShell (real)** |
 |---|---|---|
-| `suggest_outfits` | ~25 ms | _pending — needs seeded prod DynamoDB user_ |
-| `preview_look` (cache hit) | ~25 ms | _pending — needs seeded prod DynamoDB user_ |
-| `compare_looks` (cache hit) | ~20 ms | _pending — needs seeded prod DynamoDB user_ |
+| `suggest_outfits` | ~1000–1700 ms | **90 ms** (repeat: 37 ms, 38 ms, 50 ms) |
+| `preview_look` (cache hit) | ~1700–1900 ms | **127 ms, 152 ms** |
+| `compare_looks` (cache hit) | ~900–1500 ms | **123 ms** |
 
-Unauthenticated baseline (not a stand-in for the above, just a sanity check): `/healthz`
-server-side processing time was 7 ms (`x-envoy-upstream-service-time` header); round trip
-from this machine (India, not us-east-1) was ~900 ms, almost entirely network distance —
-not informative for the actual < 500 ms budget, which must be measured from us-east-1.
+All comfortably under the 500 ms budget. This also retroactively confirms what was
+already suspected: every earlier "latency" number measured from this machine (900 ms for
+a bare `/healthz`, 900 ms–1.8 s for authenticated tool calls) was almost entirely
+India↔us-east-1 network distance, not server-side cost — the deployed service itself
+responds in tens of milliseconds once you're actually in the right region. Phase 3's
+"Done when" criterion (< 500 ms from us-east-1, recorded) is now satisfied.
 
 ## Account-verification blocker (2026-09-07)
 
