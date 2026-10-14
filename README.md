@@ -111,6 +111,13 @@ expects, nothing it rejects:
   30-day refresh, rotating; all persisted hashed)
 - unauthenticated `POST /mcp` → **`401` with no `WWW-Authenticate`** (Amazon's quirk)
 
+Ops: `GET /healthz` (add `?deep=1` to also touch the store — DynamoDB/SQLite — rather
+than just confirm the process is up), `GET /version` (package version + `GIT_SHA`, so
+it's obvious which commit a deployed instance is actually running — see friction log
+#11, a stale image was the whole bug). `/link`, `/oauth/token`, `/api/simulate/turn` and
+`/mcp` are all rate-limited per IP (`src/auth/rateLimit.ts`); graceful shutdown on
+`SIGTERM`/`SIGINT` so an App Runner deploy doesn't sever in-flight requests.
+
 Dev shortcut: `Authorization: Bearer dev_praveen` works when `ALLOW_DEV_TOKENS=true`
 (auto-off when `NODE_ENV=production`). Point MCP Inspector at `http://localhost:3000/mcp`
 and it runs the full PKCE dance.

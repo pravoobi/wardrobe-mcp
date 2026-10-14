@@ -38,7 +38,7 @@ the same `Store` contract as SQLite against DynamoDB Local).
 # 1. build + push the image
 aws ecr create-repository --repository-name wardrobe-mcp --region us-east-1
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <acct>.dkr.ecr.us-east-1.amazonaws.com
-docker build -t wardrobe-mcp .
+docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD) -t wardrobe-mcp .
 docker tag wardrobe-mcp <acct>.dkr.ecr.us-east-1.amazonaws.com/wardrobe-mcp:latest
 docker push <acct>.dkr.ecr.us-east-1.amazonaws.com/wardrobe-mcp:latest
 

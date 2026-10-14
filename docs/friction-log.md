@@ -454,3 +454,42 @@ Format per entry:
   (`test/mcp/errorMasking.test.ts`) asserts both halves: a raw exception containing an
   account id/ARN never reaches the client, and a deliberate `ToolError` (missing scope)
   still does, verbatim.
+
+## 15. Ops hardening pass surfaced a real crash: malformed `POST /link` threw unhandled
+
+- **Task** — Same security review: no rate limiting anywhere, `/healthz` never touched
+  the store so App Runner couldn't tell "process up" from "process up, DynamoDB
+  unreachable," no way to tell which commit a deployed instance was running (directly
+  related to how friction log #11's stale-image bug stayed hidden), no graceful shutdown.
+- **Steps (the fixes)** — Added `src/auth/rateLimit.ts`, a small fixed-window in-process
+  limiter keyed by client IP (`X-Forwarded-For`, falling back to the raw socket address),
+  applied to `/link`, `/oauth/token`, `/api/simulate/turn` (20/min — the Bedrock proxy
+  from friction log #9/#14, unmetered until now) and `/mcp` (120/min). `/healthz?deep=1`
+  now does a real `store.getUser()` round trip. Added `GET /version` reporting
+  `package.json`'s version plus `GIT_SHA` (a new Docker build arg, `--build-arg
+  GIT_SHA=$(git rev-parse --short HEAD)` — see `docs/aws.md`). Added `SIGTERM`/`SIGINT`
+  handlers that close the HTTP server cleanly instead of letting App Runner sever
+  in-flight requests on every deploy.
+- **What the new tests caught** — Writing a basic "hit `/link` a few times, confirm it
+  eventually 429s, confirm an unrelated IP doesn't" test tripped a **real, pre-existing
+  crash**: `POST /link` with an unrecognized `userId` re-renders the consent page via
+  `renderLinkPage(p, ...)`, which does `new URL(p.resource).host` — and the resource
+  format wasn't validated until *after* that unrecognized-user check. An incomplete form
+  post (missing or malformed `resource`) threw an unhandled `TypeError` and the request
+  came back as a bare, unhelpful `500 Internal Server Error` instead of a clean `400`.
+  Hono's default error handler happened to not leak the stack trace to the client here
+  (unlike friction log #14's bug, which did), but the crash itself was real and would
+  have confused a legitimate OAuth client sending slightly malformed data far more than
+  any deliberate attack.
+- **Severity** — medium (no information disclosure this time, but a real unhandled
+  exception on a public, unauthenticated endpoint, found by writing one ops test, not by
+  deliberately looking for it).
+- **Fix** — Reordered `/link`'s validation: `resource` and `scope` are now checked
+  *before* the unrecognized-user branch, so `renderLinkPage` is never called with
+  unvalidated input. `test/server/ops.test.ts` has both the rate-limit tests and a
+  dedicated regression test for the crash (malformed `resource` → clean `400`, not `500`).
+- **Suggestion** — this is the second time in two friction-log entries that writing a
+  test for one thing (rate limiting) found a real bug in something else entirely
+  (request validation ordering) — a point in favor of actually writing the "boring" ops
+  tests rather than treating them as a checkbox; they kept finding real bugs no amount of
+  staring at the code did.

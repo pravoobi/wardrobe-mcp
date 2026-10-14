@@ -23,8 +23,13 @@ export const CLIENTS: Record<string, OAuthClient> = {
   "web-simulator": {
     clientId: "web-simulator",
     // The simulated Alexa+ web app (Phase 5) — served by this same server at /simulator,
-    // so it's a public client authorizing itself as its own redirect target.
-    redirectUris: [`${config.issuer}/simulator`, "http://localhost:3000/simulator"],
+    // so it's a public client authorizing itself as its own redirect target. The
+    // localhost:3000 fallback is dev-only (hitting this server via `npm run dev`
+    // against a deployed-looking MCP_CANONICAL_URL) and dropped in production so a
+    // live server can't be tricked into redirecting a real auth code to localhost.
+    redirectUris: config.isProd
+      ? [`${config.issuer}/simulator`]
+      : [`${config.issuer}/simulator`, "http://localhost:3000/simulator"],
     name: "Simulated Alexa+ (web)",
   },
 };

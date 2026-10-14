@@ -77,14 +77,21 @@ export function mountOAuth(app: Hono, store: Store): void {
     if (!client || !client.redirectUris.includes(p.redirect_uri)) {
       return c.text("invalid client or redirect_uri", 400);
     }
-    if (!DEMO_USERS.some((u) => u.id === userId)) {
-      return c.html(renderLinkPage(p, "Pick a demo user to continue."), 400);
-    }
+    // Validated before anything below renders the consent page again —
+    // renderLinkPage does `new URL(p.resource).host`, which throws on a
+    // malformed/missing resource and must never run against unvalidated input.
     if (p.resource.replace(/\/$/, "") !== config.canonicalUrl) {
       return c.text("invalid resource", 400);
     }
-
     const scopes = p.scope.split(/\s+/).filter(Boolean);
+    const badScope = scopes.filter((s) => !config.oauth.scopesSupported.includes(s as never));
+    if (badScope.length) {
+      return c.text(`unknown scope: ${badScope.join(", ")}`, 400);
+    }
+    if (!DEMO_USERS.some((u) => u.id === userId)) {
+      return c.html(renderLinkPage(p, "Pick a demo user to continue."), 400);
+    }
+
     await store.upsertUser({
       id: userId,
       displayName: DEMO_USERS.find((u) => u.id === userId)!.name,

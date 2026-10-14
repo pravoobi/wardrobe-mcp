@@ -26,6 +26,12 @@ RUN npm run build
 FROM base AS runtime
 # App Runner sends traffic to $PORT; default 3000 for local `docker run`.
 ENV PORT=3000
+# Pass --build-arg GIT_SHA=$(git rev-parse --short HEAD) so /version reports
+# which commit is actually running — this is what would have made the
+# stale-image-missing-plan_week bug (friction log #11) obvious immediately
+# instead of needing a live tools/list diff to discover.
+ARG GIT_SHA=unknown
+ENV GIT_SHA=$GIT_SHA
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/web ./web
