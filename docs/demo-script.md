@@ -20,7 +20,7 @@ Shot list follows the sangeet flow exactly as verified end-to-end in the simulat
 | 1:00–1:15 | "Save that." | `save_look` → "Saved as look-1." |
 | 1:15–1:40 | "Now show me another option." → "Save that." | Second render appears (Cream Embroidered Kurti) → saved as look-2. |
 | 1:40–2:00 | "Compare them." | `compare_looks` → the side-by-side sheet appears on screen. "Go with the magenta." → `record_reaction(love)` → confirms and offers the purchase link. |
-| 2:00–2:30 | One diagram: the renderer bridge. | "The try-on pipeline is browser-only. We don't port it — the server drives the try-on app's *own* WebMCP tools through headless Chromium. One tool contract, two transports. Rendering is pre-computed; every tool call is a sub-500ms cache read." |
+| 2:00–2:30 | One diagram: the renderer bridge. | "The try-on pipeline is browser-only. We don't port it — the server drives the try-on app's *own* WebMCP tools through headless Chromium. One tool contract, two transports. Rendering is pre-computed, so every tool call is a cache read — measured under 150 milliseconds from AWS's own us-east-1, well inside Alexa+'s 500 millisecond budget." |
 | 2:30–2:50 | AWS + open source. | App Runner, S3, DynamoDB, Bedrock. New MIT repo created during the window — what's new vs. the pre-existing try-on app. |
 | 2:50–3:00 | Close. | The thesis line: "Alexa+ is the stylist's voice; this is the stylist's memory and eyes." |
 
@@ -38,3 +38,10 @@ Shot list follows the sangeet flow exactly as verified end-to-end in the simulat
 - Say the sample phrases exactly as written above — they're what the rule-based fallback
   (and the real Bedrock path) are tuned to understand cleanly, so the flow won't stall on
   a rephrasing mid-recording.
+- The "under 150 milliseconds" line at 2:00–2:30 is real, not a round-number guess — see
+  `docs/aws.md`'s Latency section (measured 2026-10-14 from an actual AWS CloudShell
+  session in us-east-1, against the deployed App Runner URL, not a dev machine):
+  `suggest_outfits` 90 ms (37–50 ms on repeat), `preview_look` cache hit 127–152 ms,
+  `compare_looks` cache hit 123 ms. If these are re-measured before recording and come
+  back meaningfully different, update both this line and `docs/aws.md` together — don't
+  let the two drift.
