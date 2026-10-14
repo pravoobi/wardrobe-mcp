@@ -120,8 +120,8 @@ restart the dev server with `MCP_CANONICAL_URL` set to the tunnel's `https://…
 (the OAuth `resource` param must match it exactly) and `ALLOW_DEV_TOKENS=false` (a
 publicly reachable instance shouldn't accept `dev_*` bearer tokens). Verified
 2026-09-07: real OAuth 2.1 PKCE + `tools/call` round trip in ~150 ms through a quick
-tunnel — this is currently the fastest path to a genuine remote HTTPS URL while the
-App Runner deploy is blocked (see `docs/aws.md`).
+tunnel — handy for local-machine testing; the real deployed instance is
+`https://ba93fetekm.us-east-1.awsapprunner.com` (see `docs/aws.md`).
 
 ## Verify
 
@@ -142,12 +142,15 @@ negotiated protocol ≥ `2025-11-25`; every image tool a cache hit < 100 ms.
 - [x] **Phase 1** — skeleton MCP over Streamable HTTP, catalog + wardrobe + suggest tools, SQLite store, smoke flow.
 - [x] **Phase 2** — renderer bridge (`local` sharp compositor + opt-in `browser` bridge to the try-on app's WebMCP tools), `sharp` compare sheets, cache + queue, whole-catalog pre-render on seed, inline image blocks. Catalog synced from `pravoobi/try-on`. Tool schemas frozen.
 - [x] **Phase 3** — OAuth 2.1 AS (PKCE S256, `resource`, refresh rotation, every rejection-path tested); DynamoDB `Store` (single-table, parity suite vs SQLite, verified against DynamoDB Local); S3 + CloudFront render storage; Bedrock garment tagger (feature-flagged); `Dockerfile` (Playwright base) + `apprunner.yaml`.
-- [ ] **Phase 3 (ops)** — ECR image pushed, DynamoDB table + S3 bucket + IAM roles live in
-  `us-east-1`; Bedrock model access granted. **Blocked:** App Runner `CreateService` and
-  CloudFront `CreateDistribution` both refuse with account-verification errors (friction log
-  #9) — this AWS account needs an AWS Support verification pass before either can be created.
-  S3 serves images directly over HTTPS in the meantime (`CLOUDFRONT_BASE_URL` points at the
-  bucket; swapping to a real CloudFront domain later is a one-line env change, no code change).
+- [x] **Phase 3 (ops)** — ECR image pushed, DynamoDB table + S3 bucket + IAM roles live in
+  `us-east-1`; Bedrock model access granted. The account-verification hold (friction log #9)
+  was resolved 2026-10-14 via an AWS Support exception request — App Runner, CloudFront, and
+  Bedrock standard-tier models are all live. **Deployed**: `https://ba93fetekm.us-east-1.awsapprunner.com`,
+  images served over a real CloudFront distribution (`dyswjdrhfb962.cloudfront.net`). Confirmed
+  live: unauthenticated `POST /mcp` → `401` with no `WWW-Authenticate`; discovery doc reports
+  the correct issuer. **Still open:** prod DynamoDB has no seeded demo user yet, so the full
+  OAuth + tool-call round trip and the us-east-1 CloudShell latency numbers (`docs/aws.md`)
+  haven't been measured against the live service yet.
 - [x] ~~**Phase 4** — Alexa+ add-on (`alexa-ai deploy`).~~ Skipped: the add-ons console is
   partner-gated ("coming soon"), not self-serve. Pivoted to Phase 5 (Devpost's officially
   sanctioned simulated-experience path — see friction log #8).

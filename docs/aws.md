@@ -51,17 +51,51 @@ npm run aws:table
 #    env from apprunner.yaml + the per-env values listed there.
 ```
 
+## ✅ Deployed 2026-10-14
+
+Live at **`https://ba93fetekm.us-east-1.awsapprunner.com`**
+(`ServiceArn: arn:aws:apprunner:us-east-1:064308050230:service/wardrobe-mcp/56b6caa91949467caf2ac1d7b1733e57`,
+`Cpu: 256 (0.25 vCPU)`, `Memory: 512 (0.5 GB)`, default autoscaling config — `MinSize: 1`,
+so it stays warm). Deployed from the existing ECR image (`latest`, pushed 2026-09-07) —
+not rebuilt, because everything that changed since then (`src/render/worker.ts`,
+`queue.ts`, `config.ts`) is exclusively `RENDER_MODE=browser` plumbing, and production
+never sets that env var (defaults to `local`); the server/auth/store code this service
+actually runs is byte-for-byte what was last verified.
+
+Bootstrap note: `MCP_CANONICAL_URL` can't be known before the service exists (App Runner
+assigns the `*.awsapprunner.com` hostname at creation time), so this was a two-step
+`create-service` → `update-service` — created with a placeholder, then one `update-service`
+call fixed it to the real URL once known. Both operations completed (`RUNNING`), confirmed
+with real requests against the live URL: `POST /mcp` with no Bearer returns `401` with
+**no** `WWW-Authenticate` header (confirmed in raw response headers), and
+`/.well-known/oauth-authorization-server` reports the correct `issuer`.
+
+`CLOUDFRONT_BASE_URL` is set to the real distribution from the entry above
+(`https://dyswjdrhfb962.cloudfront.net`), replacing the S3-direct-endpoint interim
+workaround.
+
+**Not yet done:** DynamoDB table `wardrobe` is empty (`ItemCount: 0`) — the demo user has
+only ever been seeded into local SQLite, never into this prod table. Phase 3's "Done
+when" criteria (MCP Inspector OAuth round trip, `curl -w` latency from a us-east-1
+CloudShell) need a seeded prod user before they can run for real; the one thing confirmed
+so far is that the unauthenticated/discovery surface is live and shaped correctly.
+
 ## Latency
 
 `preview_look` / `compare_looks` / `suggest_outfits` measured with `curl -w` from a
 us-east-1 CloudShell against the deployed URL must be < 500 ms for every tool. Numbers
-recorded here once the service is up.
+recorded here once a prod user is seeded and the authenticated round trip can run.
 
 | tool | local (this machine) | us-east-1 → App Runner |
 |---|---|---|
-| `suggest_outfits` | ~25 ms | _pending_ |
-| `preview_look` (cache hit) | ~25 ms | _pending_ |
-| `compare_looks` (cache hit) | ~20 ms | _pending_ |
+| `suggest_outfits` | ~25 ms | _pending — needs seeded prod DynamoDB user_ |
+| `preview_look` (cache hit) | ~25 ms | _pending — needs seeded prod DynamoDB user_ |
+| `compare_looks` (cache hit) | ~20 ms | _pending — needs seeded prod DynamoDB user_ |
+
+Unauthenticated baseline (not a stand-in for the above, just a sanity check): `/healthz`
+server-side processing time was 7 ms (`x-envoy-upstream-service-time` header); round trip
+from this machine (India, not us-east-1) was ~900 ms, almost entirely network distance —
+not informative for the actual < 500 ms budget, which must be measured from us-east-1.
 
 ## Account-verification blocker (2026-09-07)
 
