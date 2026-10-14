@@ -148,9 +148,12 @@ negotiated protocol ≥ `2025-11-25`; every image tool a cache hit < 100 ms.
   Bedrock standard-tier models are all live. **Deployed**: `https://ba93fetekm.us-east-1.awsapprunner.com`,
   images served over a real CloudFront distribution (`dyswjdrhfb962.cloudfront.net`). Confirmed
   live: unauthenticated `POST /mcp` → `401` with no `WWW-Authenticate`; discovery doc reports
-  the correct issuer. **Still open:** prod DynamoDB has no seeded demo user yet, so the full
-  OAuth + tool-call round trip and the us-east-1 CloudShell latency numbers (`docs/aws.md`)
-  haven't been measured against the live service yet.
+  the correct issuer. **Full authenticated round trip verified** — real OAuth 2.1 PKCE login,
+  real `@modelcontextprotocol/sdk` client, the whole sangeet sequence against the live service,
+  found and fixed 3 real deploy-only bugs along the way (stale image missing `plan_week`,
+  a `RENDER_MODE` cache-key mismatch, a missing `s3:ListBucket` IAM grant that broke
+  `compare_looks` on any true cache miss — see `docs/aws.md`). **Still open:** the required
+  < 500 ms latency numbers need measuring from an actual us-east-1 CloudShell, not yet done.
 - [x] ~~**Phase 4** — Alexa+ add-on (`alexa-ai deploy`).~~ Skipped: the add-ons console is
   partner-gated ("coming soon"), not self-serve. Pivoted to Phase 5 (Devpost's officially
   sanctioned simulated-experience path — see friction log #8).

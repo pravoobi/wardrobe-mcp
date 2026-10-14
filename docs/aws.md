@@ -88,17 +88,69 @@ against prod infrastructure, not just the local demo path. `DYNAMODB_TABLE`
 `ItemCount` from `describe-table` still reads `0` — that's DynamoDB's known several-hour
 metric lag, not a real signal; a direct `Query`/`Scan` is what was actually checked.
 
-**Still not done:** the deployed App Runner service itself has `ALLOW_DEV_TOKENS=false`
-(correct, intentional), so exercising it end-to-end now needs a real OAuth 2.1 PKCE
-login (MCP Inspector, or the `web/simulator.html` flow pointed at the deployed URL) —
-not yet run against `https://ba93fetekm.us-east-1.awsapprunner.com`. That's also what the
-`curl -w` latency numbers below are waiting on.
+## ✅ Full authenticated round trip verified 2026-10-14
+
+Ran a real OAuth 2.1 PKCE flow against the live service (client `mcp-inspector-local`,
+same code path MCP Inspector uses) and drove the actual sangeet tool sequence with the
+real `@modelcontextprotocol/sdk` client over Streamable HTTP — not a smoke test against
+local SQLite, the genuine deployed URL. This caught two real bugs the earlier "is it up"
+checks couldn't see:
+
+**Bug 1 — deployed image predated `plan_week`.** `tools/list` returned 9 tools, missing
+`plan_week`. Root cause: the ECR image was pushed at **12:04** on 2026-09-07, but
+`plan_week` (commit `a2e75bc`) wasn't committed until **13:27** that same day — a
+same-day gap my earlier "nothing changed since 2026-09-07" check missed, because it
+compared by date, not by commit-vs-push time. Fixed: rebuilt the image from current
+`main`, pushed to ECR, forced a redeploy with `apprunner start-deployment`. Confirmed:
+`tools/list` now returns all 10.
+
+**Bug 2 — `RENDER_MODE` mismatch made the prod seed invisible to the live service.**
+The 2026-10-14 seed used `RENDER_MODE=browser`, but the deployed service itself defaults
+to `RENDER_MODE=local` (`apprunner.yaml` never sets it) — the cache key includes the
+mode string, so every `preview_look` against the live service was a cache **miss**
+despite the table showing 8 `done` render jobs. Decided to keep production on
+`RENDER_MODE=local`: the instance is 0.25 vCPU / 0.5 GB, too small to safely run headless
+Chromium + a Wasm ML pipeline as a background job without real OOM risk on the only
+running copy of the service. Re-seeded prod with `RENDER_MODE=local` (10.1s total,
+side-by-side composites — the real garment-on-body quality stays a local/demo-only
+differentiator, see `docs/demo.gif`). Confirmed: `preview_look` now returns
+`status: done` on the first call.
+
+**Bug 3 — `compare_looks` failed on any true cache miss, IAM-only, user-fixed.**
+First real compare in prod threw `AccessDenied: ... not authorized to perform:
+s3:ListBucket ... because no identity-based policy allows the s3:ListBucket action`.
+Classic S3 behavior: without bucket-level `s3:ListBucket`, a `GetObject` on a
+**non-existent** key returns `403` instead of `404 NoSuchKey`, which `S3Storage.get()`
+only ever catered for by name (`err.name === "NoSuchKey"`), so the 403 bubbled up as a
+real tool error. The original instance-role policy only ever granted
+`s3:{Put,Get}Object` on `.../*` — `s3:ListBucket` (a bucket-level action, different
+resource ARN with no trailing `/*`) was never included. This is an IAM/security-settings
+change, so it was applied by the project owner directly in the AWS Console (IAM → Roles
+→ `wardrobe-mcp-apprunner-instance` → inline policy `wardrobe-mcp-instance-permissions`
+→ added a `S3BucketList` statement: `Action: s3:ListBucket`,
+`Resource: arn:aws:s3:::wardrobe-looks-064308050230`). Confirmed fixed immediately (IAM
+changes need no redeploy): `compare_looks` now returns `status: done` with a real
+`compareUrl` on the very first call for a never-before-compared pair of looks.
+
+Also confirmed as a non-bug: the simulator's Bedrock reasoning call
+(`/api/simulate/turn`) hit the same daily-token `ThrottlingException` as every earlier
+CLI test, and fell back to `src/web/ruleReasoner.ts` exactly as designed, tagged
+`reasoner: "rule-based"` — the instance role's `bedrock:InvokeModel` grant does cover
+`ConverseCommand` (AWS doesn't have a separate IAM action for it), so this is quota, not
+a permissions gap.
+
+**Still open:** the actual `< 500 ms` SLA has **not** been measured yet. The full round
+trip above ran from this machine (India), where even a bare `/healthz` was ~900 ms of
+pure network distance (confirmed separately) — not a valid stand-in for the required
+us-east-1 vantage point. The next step is the `curl -w` pass from an actual us-east-1
+CloudShell session.
 
 ## Latency
 
 `preview_look` / `compare_looks` / `suggest_outfits` measured with `curl -w` from a
-us-east-1 CloudShell against the deployed URL must be < 500 ms for every tool. Numbers
-recorded here once a prod user is seeded and the authenticated round trip can run.
+us-east-1 CloudShell against the deployed URL must be < 500 ms for every tool. The
+authenticated round trip above is now fully working end-to-end, so this is unblocked —
+just not yet run from the right vantage point. Numbers recorded here once it is.
 
 | tool | local (this machine) | us-east-1 → App Runner |
 |---|---|---|

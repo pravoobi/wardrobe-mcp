@@ -324,3 +324,48 @@ Format per entry:
   minimum, the spec/quickstart docs should call out that CORS is the implementer's
   responsibility — it's easy to build and fully verify a server with curl/server-side
   clients and never notice browser-based clients can't reach it at all.
+
+## 11. `compare_looks` broke on any real cache miss — S3's 403-instead-of-404 without `s3:ListBucket`
+
+- **Task** — Verify the deployed App Runner service with a real OAuth round trip and the
+  actual sangeet tool sequence (2026-10-14), per guideline 38 ("verify the deployed site,
+  not just local") — the first time any tool call had been exercised against the real
+  prod DynamoDB/S3, not SQLite/local storage.
+- **Steps** — `suggest_outfits` → `preview_look` (cache hit, pre-seeded) → `save_look` x2
+  → `compare_looks` on a pair of looks that had never been compared before (so the
+  compare-sheet S3 key genuinely didn't exist yet).
+- **Expected vs actual** — Expected either a composed sheet or `{status: "composing"}`.
+  Actual: a hard tool error — `User: arn:aws:sts::...:assumed-role/wardrobe-mcp-apprunner-
+  instance/... is not authorized to perform: s3:ListBucket on resource:
+  "arn:aws:s3:::wardrobe-looks-064308050230" because no identity-based policy allows the
+  s3:ListBucket action`.
+- **Root cause** — Classic S3 IAM behavior, not obvious from the error text alone: without
+  bucket-level `s3:ListBucket`, a `GetObject` on a key that genuinely doesn't exist
+  returns `403 AccessDenied` (mentioning `ListBucket`) instead of the expected
+  `404 NoSuchKey` — S3's way of not confirming/denying object existence to a caller who
+  can't list the bucket. `S3Storage.get()` (`src/render/s3Storage.ts`) only ever handled
+  `err.name === "NoSuchKey"`; this 403 fell through and bubbled up as a real error. The
+  instance role's policy only ever granted `s3:{Put,Get}Object` on `.../*` — `ListBucket`
+  (a different action, on the bucket ARN with no trailing `/*`) was never included,
+  because every prior test either hit cache (`preview_look`, pre-seeded) or used local
+  storage (`RENDER_MODE=local` dev/tests never touch S3 at all).
+- **Severity** — critical — this is the compare step of the demo's own headline flow
+  ("show me the magenta one... now the navy one... compare them"), and it was silently
+  broken in prod for any pair of looks that hadn't already been compared once by
+  someone else first. Zero unit-test coverage could have caught it either: the test
+  suite's S3 testing is parity-tested against DynamoDB Local, not against IAM-permission
+  edge cases, since local fakes don't model S3's existence-check behavior.
+- **Fix** — Added an `S3BucketList` statement (`s3:ListBucket` on the bucket ARN, not
+  `.../*`) to the `wardrobe-mcp-instance-permissions` inline policy on
+  `wardrobe-mcp-apprunner-instance`. IAM changes need no redeploy; the very next
+  `compare_looks` call for that same pair succeeded immediately. Applied by the project
+  owner directly (IAM/security-setting changes aren't something an agent should apply on
+  its own, regardless of instruction).
+- **Suggestion** — (AWS) the S3 `403`-for-a-missing-key-without-ListBucket behavior is
+  well-documented AWS trivia, but surprising to anyone who reaches for S3 as "just a
+  key-value store" — a clearer error (naming the actual missing grant pattern, or at
+  least distinguishing it from a real `AccessDenied` on an object that *does* exist)
+  would have saved real time here. (Project) `S3Storage.get()` should probably treat any
+  `403`/`AccessDenied` on a `GetObject` the same as `NoSuchKey` for cache-read purposes —
+  a permissions problem serious enough to need fixing shouldn't silently masquerade as
+  "no cached render yet" either, so this needs a decision, not a blind catch-all.
