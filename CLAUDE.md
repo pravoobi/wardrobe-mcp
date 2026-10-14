@@ -369,7 +369,8 @@ moot until/unless that changes. Left here only as a record of what it would have
   `toolConfig` built from the live `tools/list` schemas) is wired and unit-tested with an
   injected fake client (`test/web/simulateApi.test.ts`).
 - **Bedrock still blocked** (`ValidationException: Operation not allowed` — friction log
-  #9), so `src/web/ruleReasoner.ts` was added: a small deterministic intent matcher with
+  #9; **resolved 2026-10-14**, see Phase 3), so `src/web/ruleReasoner.ts` was added: a
+  small deterministic intent matcher with
   the exact same `{message, stopReason}` contract Bedrock's Converse API returns, so
   `web/app.ts`'s loop never has to know which one answered. `simulateApi.ts` tries
   Bedrock first, falls back to it automatically on any error, and tags the response
@@ -424,7 +425,13 @@ moot until/unless that changes. Left here only as a record of what it would have
   notice still visible since Bedrock was still down at record time — re-record once real
   Bedrock reasoning is back if a cleaner take is wanted, not required. Diagram — the
   existing ASCII architecture diagram in the README was judged sufficient; not redone as
-  an image.
+  an image. **✅ Docs fully done 2026-10-14**: `docs/aws.md` now reflects the actually
+  deployed, verified state (not a plan) — live App Runner + CloudFront URLs, the 3
+  deploy-only bugs found and fixed, and real us-east-1 latency numbers; README's status
+  table and `docs/demo-script.md`'s latency line updated to match. The Phase 5 notes
+  above still say "Bedrock still blocked" — that's an accurate historical record of
+  2026-09-07, not current state; it now carries a pointer to the Phase 3 resolution so
+  it doesn't read as stale when skimmed later.
 - Demo video < 3 min: 0:00–0:20 hook (the voice flow, live), 0:20–1:40 full sangeet loop
   on screen, 1:40–2:20 the renderer bridge in one diagram, 2:20–2:50 AWS + open source +
   what's new vs try-on, 2:50 close. Record at 1080p, English VO, no music.
