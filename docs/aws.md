@@ -74,11 +74,25 @@ with real requests against the live URL: `POST /mcp` with no Bearer returns `401
 (`https://dyswjdrhfb962.cloudfront.net`), replacing the S3-direct-endpoint interim
 workaround.
 
-**Not yet done:** DynamoDB table `wardrobe` is empty (`ItemCount: 0`) — the demo user has
-only ever been seeded into local SQLite, never into this prod table. Phase 3's "Done
-when" criteria (MCP Inspector OAuth round trip, `curl -w` latency from a us-east-1
-CloudShell) need a seeded prod user before they can run for real; the one thing confirmed
-so far is that the unauthenticated/discovery surface is live and shaped correctly.
+**✅ Prod seeded 2026-10-14.** Ran `scripts/seed.ts` locally against the real resources
+(`STORE=dynamodb STORAGE=s3 RENDER_MODE=browser` pointed at table `wardrobe` / bucket
+`wardrobe-looks-064308050230` / `CLOUDFRONT_BASE_URL=https://dyswjdrhfb962.cloudfront.net`,
+using the same `wardrobe-mcp-cli` IAM credentials as the AWS CLI) — demo user `praveen`,
+1 photo, 2 wardrobe items, all 8 catalog garments pre-rendered with real browser-mode
+try-on, 76.9s total. Verified, not just logged: queried the table directly (`PROFILE`,
+`PHOTO#photo-1`, 2 `WARDROBE#` items, 8 `RENDER#` jobs all `status: done`), downloaded
+all 8 rendered images over the live CloudFront URL (`200`, correct sizes), and hashed
+them — 8 distinct MD5s, each matching the exact same hash produced during the local
+browser-mode verification in friction log #4b, confirming the renderer is still correct
+against prod infrastructure, not just the local demo path. `DYNAMODB_TABLE`
+`ItemCount` from `describe-table` still reads `0` — that's DynamoDB's known several-hour
+metric lag, not a real signal; a direct `Query`/`Scan` is what was actually checked.
+
+**Still not done:** the deployed App Runner service itself has `ALLOW_DEV_TOKENS=false`
+(correct, intentional), so exercising it end-to-end now needs a real OAuth 2.1 PKCE
+login (MCP Inspector, or the `web/simulator.html` flow pointed at the deployed URL) —
+not yet run against `https://ba93fetekm.us-east-1.awsapprunner.com`. That's also what the
+`curl -w` latency numbers below are waiting on.
 
 ## Latency
 
