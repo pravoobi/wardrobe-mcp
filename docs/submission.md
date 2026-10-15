@@ -12,11 +12,21 @@
 
 ## Open Source mini challenge — form fields
 
+The rules accept either route — *"a new, additional open-source project (include an
+open-source license)"* **or** *"a contribution (a branch, a fork, or a pull request) to a
+public repository"*. We qualify on both, so both are listed; the PR is the unambiguous one
+(`wardrobe-mcp` is also the primary-track submission, and "additional" could be read as
+excluding it).
+
 - **Repo URL:** https://github.com/pravoobi/wardrobe-mcp
-- **Contribution URL:** https://github.com/pravoobi/wardrobe-mcp/commit/b271b0535d9d52223eb4ea779be77bdd2428c6d6
+- **Contribution URL:** https://github.com/pravoobi/try-on/pull/1
+  — a pull request to the public `pravoobi/try-on` repository adding the root MIT
+  `LICENSE`. Opened during the hackathon window; PRs don't need to be merged per the rules.
+- **Secondary (the new project itself):**
+  https://github.com/pravoobi/wardrobe-mcp/commit/b271b0535d9d52223eb4ea779be77bdd2428c6d6
   (first commit, "feat: Phase 1 — MCP server over Streamable HTTP")
 - **GitHub username:** pravoobi
-- **License:** MIT (`LICENSE` at repo root; set in GitHub → About → License)
+- **License:** MIT (`LICENSE` at repo root of **both** repos; set in GitHub → About → License)
 - **Created during the window:** first commit 2026-09-02, well inside the hackathon window.
 - **What / how / why it matters:**
   - _What_ — an MCP server that gives Alexa+ a customer's wardrobe plus virtual try-on previews.
@@ -31,6 +41,9 @@
     transcript whenever it's the one answering, never silent.
   - _Why it matters_ — it's a reusable pattern: WebMCP tool contracts written for a web app
     port cleanly to a remote MCP server. Same catalog, same tool semantics, new transport.
+  - _The PR specifically_ — `try-on`'s workspace packages each carried a license but the
+    repo root didn't, so GitHub showed the repository itself as unlicensed. Small change,
+    but it's the difference between "open source" and "source you can see."
 
 ## Pre-existing project disclosure
 
