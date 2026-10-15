@@ -24,9 +24,13 @@ Customer story (this is the demo script, keep it in mind for every design decisi
 **Thesis:** Alexa+ is the stylist's *voice*; this server is the stylist's *memory and eyes*.
 Every tool is a thin, fast, structured lookup. Anything slow (rendering) is pre-computed.
 
-**Positioning:** portfolio proof that the WebMCP tool contracts written for the try-on app
-port cleanly to a remote MCP server — same catalog, same tool semantics, new transport —
-plus a real Alexa+ add-on with OAuth 2.1, AWS-hosted.
+**Positioning:** the thing a voice assistant can't normally do — *show* you, not just tell
+you — made real by driving the try-on app's own on-device rendering through a headless
+browser, wrapped in a real, spec-compliant Alexa+ add-on (OAuth 2.1, Streamable HTTP,
+AWS-hosted). Judges' own rubric calls "a basic MCP wrapper around an existing API"
+*obvious* — lead with the render bridge and persistent styling memory, not with "ported
+WebMCP tool contracts," which reads as exactly that wrapper. The porting story is true and
+worth one supporting line, not the headline.
 
 ## Non-negotiable hackathon requirements (verified against the rules page + Alexa+ docs)
 

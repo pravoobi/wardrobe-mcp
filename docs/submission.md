@@ -14,24 +14,38 @@
 
 The rules accept either route — *"a new, additional open-source project (include an
 open-source license)"* **or** *"a contribution (a branch, a fork, or a pull request) to a
-public repository"*. We qualify on both, so both are listed; the PR is the unambiguous one
-(`wardrobe-mcp` is also the primary-track submission, and "additional" could be read as
-excluding it).
+public repository"*. We qualify on both; `wardrobe-mcp` itself is the primary answer —
+real tests, a real new integration pattern, actively maintained during the window — with
+the `try-on` PR kept as an unambiguous fallback (a LICENSE file alone is a thin showing
+against this mini challenge's own "meaningful feature / bug fix / new integration
+pattern" bar for *creative*, versus "README update, typo fix, minor formatting" for
+*obvious*).
 
 - **Repo URL:** https://github.com/pravoobi/wardrobe-mcp
-- **Contribution URL:** https://github.com/pravoobi/try-on/pull/1
-  — a pull request to the public `pravoobi/try-on` repository adding the root MIT
-  `LICENSE`. Opened during the hackathon window; PRs don't need to be merged per the rules.
-- **Secondary (the new project itself):**
+- **Contribution URL (primary):**
   https://github.com/pravoobi/wardrobe-mcp/commit/b271b0535d9d52223eb4ea779be77bdd2428c6d6
   (first commit, "feat: Phase 1 — MCP server over Streamable HTTP")
+- **Fallback, if the judges read "additional" as excluding the primary submission:**
+  https://github.com/pravoobi/try-on/pull/1 — a pull request to the public
+  `pravoobi/try-on` repository adding the root MIT `LICENSE` (that repo's workspace
+  packages each already carried one; the repo root didn't, so GitHub showed the
+  repository itself as unlicensed). Opened during the window; PRs don't need to be
+  merged per the rules.
 - **GitHub username:** pravoobi
 - **License:** MIT (`LICENSE` at repo root of **both** repos; set in GitHub → About → License)
 - **Created during the window:** first commit 2026-09-02, well inside the hackathon window.
 - **What / how / why it matters:**
-  - _What_ — an MCP server that gives Alexa+ a customer's wardrobe plus virtual try-on previews.
-  - _How_ — Streamable HTTP MCP (spec 2025-11-25), OAuth 2.1 with PKCE, a renderer bridge
-    that reuses the try-on app's own WebMCP tools through headless Chromium. Deployed and
+  - _What_ — a stylist that doesn't just talk: ask Alexa+ what to wear, and it can show
+    you wearing it, on your own photo, before you decide. Everything it does — suggesting,
+    showing, remembering what you saved and how you reacted — is in service of that one
+    thing a voice assistant normally can't do: let you actually look at the outfit.
+  - _How_ — the hard part is the renderer bridge: the try-on pipeline is browser-only
+    (on-device ML, WebGPU/Wasm), so rather than reimplement it, the server drives the
+    *deployed app's own* WebMCP tools through headless Chromium and pulls the rendered
+    frame back out — one tool contract, two transports, the exact render a human would
+    get clicking the button themselves. Everything else is a real, spec-compliant Alexa+
+    add-on around that: Streamable HTTP MCP (2025-11-25), OAuth 2.1 with PKCE, state that
+    persists across turns (saved looks, reactions) rather than one-shot Q&A. Deployed and
     live at **https://ba93fetekm.us-east-1.awsapprunner.com** (App Runner, `us-east-1`),
     with DynamoDB, S3 + CloudFront, ECR and IAM all in use. The new-account verification
     hold that blocked App Runner/CloudFront/Bedrock for five weeks (friction log #9) was
@@ -39,11 +53,10 @@ excluding it).
     currently hits a daily-token quota, so `src/web/ruleReasoner.ts` — a small
     deterministic fallback — stands in automatically, tagged and visibly labeled in the
     transcript whenever it's the one answering, never silent.
-  - _Why it matters_ — it's a reusable pattern: WebMCP tool contracts written for a web app
-    port cleanly to a remote MCP server. Same catalog, same tool semantics, new transport.
-  - _The PR specifically_ — `try-on`'s workspace packages each carried a license but the
-    repo root didn't, so GitHub showed the repository itself as unlicensed. Small change,
-    but it's the difference between "open source" and "source you can see."
+  - _Why it matters_ — the render bridge pattern generalizes: any existing WebMCP web app
+    gains a remote-MCP, voice-first surface without porting its rendering logic at all.
+  - _The fallback PR specifically_ — small change, but it's the difference between "open
+    source" and "source you can see."
 
 ## Pre-existing project disclosure
 
