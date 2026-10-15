@@ -27,6 +27,27 @@ notices are real and honest, not staged — the account-verification blocker in
 [`docs/aws.md`](docs/aws.md) was still open at recording time, so `src/web/ruleReasoner.ts`
 answered instead of real Bedrock. Same real MCP tools either way.*
 
+## Try it in a minute
+
+Everything below is the **live deployed server** (AWS App Runner, `us-east-1`) — no signup,
+no API key, nothing to install.
+
+1. **[Open the simulated Alexa+ app →](https://ba93fetekm.us-east-1.awsapprunner.com/simulator)**
+   Click **Connect** → **Continue as Praveen** (a real OAuth 2.1 PKCE login against this
+   server's own `/oauth/*`), then click the first suggested line:
+   *"I have a sangeet on Saturday. What should I wear? Budget eight thousand."*
+   Keep clicking down the list — suggest → preview → save → another → save → compare.
+   Every grey `TOOL CALL` bubble is a real MCP `tools/call` over Streamable HTTP, and every
+   image on the Echo Show panel is served from CloudFront.
+2. **[See the OAuth discovery document →](https://ba93fetekm.us-east-1.awsapprunner.com/.well-known/oauth-authorization-server)**
+   — `S256`, the `resource` parameter, no Dynamic Client Registration: what Alexa+ requires.
+3. **[Check which commit is live →](https://ba93fetekm.us-east-1.awsapprunner.com/version)**
+   — the deployed `GIT_SHA`, baked in at image build. It tracks the last commit that
+   changed the *server*; docs-only commits move `main` ahead without a redeploy.
+
+Prefer to drive it as a raw MCP client? `POST /mcp` unauthenticated returns the `401`
+shape Alexa+ expects; the full OAuth + `tools/call` flow is in [Auth](#auth-oauth-21).
+
 ## Architecture
 
 ```
@@ -52,12 +73,17 @@ Two render modes (`RENDER_MODE`):
 | mode | what it does | when |
 |---|---|---|
 | `local` *(default)* | composes a look card with `sharp` from the flat garment PNG + the customer photo — fast, offline, deterministic | dev, tests, demo |
-| `browser` | the real bridge above — drives the deployed try-on app in headless Chromium | GPU-capable host / `xvfb` |
+| `browser` | the real bridge above — drives the deployed try-on app in headless Chromium | recording the demo, eyeballing real try-on output |
 | `stub` | solid-colour placeholder | unit tests |
 
-Headless Chromium has no WebGPU on most hosts, so `browser` mode is slow (Wasm/CPU
-fallback) — hence it's opt-in and `local` is the default. See
-[`docs/friction-log.md`](docs/friction-log.md) #4.
+`browser` mode needs Playwright's **full** Chromium (`channel: "chromium"`), not the
+default headless shell — the shell ships no GPU stack at all, so `requestAdapter()`
+returns `null` and the try-on app waits forever on a WebGPU device that never arrives.
+With the right binary it's ~13 s per render, not "slow because of CPU fallback" (that was
+our own wrong diagnosis for a while — see [`docs/friction-log.md`](docs/friction-log.md)
+#4a/#4b for the full trail). It stays opt-in and `local` stays the default because
+production runs on a 0.25 vCPU / 0.5 GB App Runner instance, which is too small to run
+Chromium plus an ML pipeline safely — not because it doesn't work.
 
 ## Tool surface
 
@@ -137,7 +163,7 @@ tunnel — handy for local-machine testing; the real deployed instance is
 ```bash
 npm run typecheck
 npm test            # unit + OAuth + discovery + CORS + Store contract + e2e MCP client
-                    # 75 pass; 8 DynamoDB-Local tests skip unless `npm run test:dynamo`
+                    # 86 pass; 9 DynamoDB-Local tests skip unless `npm run test:dynamo`
 npm run smoke       # boots the server, runs OAuth + the full sangeet flow
 npm run test:dynamo # Store contract against DynamoDB Local (needs Docker)
 ```
