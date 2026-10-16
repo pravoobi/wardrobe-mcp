@@ -1,13 +1,16 @@
 # Demo video — shot by shot (< 3 min)
 
 Lead with the customer, not the architecture. 1080p, English VO, no music, no third-party
-logos. Screen-recorded from `web/simulator.html` (Phase 4's real Alexa+ add-on is
-unavailable — the MCP Toolkit console is partner-gated, "coming soon"; see friction log
-#8). Devpost's simulated-experience path requires the demo to **clearly show it's
-simulated** — the on-screen banner in the simulator UI already says so, and the VO says
-it once, plainly, in the first 20 seconds. Don't apologize for it or dwell on it either —
-say it once and move on to what actually works: a real MCP server, real OAuth 2.1, real
-renders.
+logos. Screen-recorded from the **live deployed simulator**, not localhost:
+
+**https://ba93fetekm.us-east-1.awsapprunner.com/simulator**
+
+(source: `web/simulator.html`; Phase 4's real Alexa+ add-on is unavailable — the MCP
+Toolkit console is partner-gated, "coming soon"; see friction log #8). Devpost's
+simulated-experience path requires the demo to **clearly show it's simulated** — the
+on-screen banner in the simulator UI already says so, and the VO says it once, plainly,
+in the first 20 seconds. Don't apologize for it or dwell on it either — say it once and
+move on to what actually works: a real MCP server, real OAuth 2.1, real renders.
 
 Shot list follows the sangeet flow exactly as verified end-to-end in the simulator
 (2026-09-07) — no invented dialogue, this is the literal transcript.
@@ -26,11 +29,19 @@ Shot list follows the sangeet flow exactly as verified end-to-end in the simulat
 
 ## Notes for whoever records this
 
-- Seed fresh before recording (`npm run seed` or `docker compose run --rm seed`) so the
-  wardrobe/looks state matches the shot list exactly — don't record against a store
-  that's accumulated test data from earlier runs (repeat looks will get `look-3`,
-  `look-4`, … instead of `look-1`/`look-2`, and old saved looks will show up in
-  `compare_looks` if you say "compare them" without specifying which two).
+- **Open the live URL above**, not `localhost:3000/simulator` — recording from the actual
+  deployed service is the point (anyone watching can go try it themselves afterward).
+- The live demo user (`praveen`) has accumulated saved looks from testing beyond this
+  session (more than the `look-1`/`look-2` the shot list assumes), so `save_look`'s spoken
+  confirmation will currently say "You have N saved looks" with N > 1 before the first
+  save in this flow. Not broken — `compare_looks` in the shot list always names its two
+  `lookIds` explicitly, so old looks never leak into the comparison — just not pristine.
+  To reset it: re-run the prod seed procedure in `docs/aws.md` (`STORE=dynamodb
+  STORAGE=s3 RENDER_MODE=local … npx tsx scripts/seed.ts` with the real AWS env vars —
+  **not** the plain `npm run seed`/`docker compose run --rm seed` commands, which only
+  seed local SQLite and have no effect on the live service), then manually clear the
+  accumulated `LOOK#` rows for `praveen` in DynamoDB if a clean `look-1` on camera matters
+  more than the few minutes that takes.
 - If real Bedrock reasoning is back online by recording time, the transcript won't show
   the "offline rule-based reasoner" notice at all — that's fine, don't force it to
   appear. If it's still down, the notice is honest and fine to leave in; don't edit it
