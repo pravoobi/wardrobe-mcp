@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>wardrobe-mcp — the renderer bridge</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #131826;
+    --panel-2: #1a2135;
+    --border: #262f47;
+    --text: #e8ecf6;
+    --muted: #8b93ab;
+    --accent: #6fb2ff;
+    --accent-2: #7ee6c0;
+    --warn: #ffcd85;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+  }
+  .wrap { width: 100%; max-width: 980px; }
+  .kicker {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    text-align: center;
+    margin: 0 0 6px;
+  }
+  h1 {
+    font-size: 30px;
+    margin: 0 0 6px;
+    text-align: center;
+  }
+  .subhead {
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+    margin: 0 0 40px;
+  }
+  .subhead b { color: var(--accent-2); font-weight: 600; }
+
+  .phase {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px 24px;
+    margin-bottom: 22px;
+  }
+  .phase-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .phase-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .phase-tag.bg { background: #3a2a12; color: var(--warn); border: 1px solid #5a4420; }
+  .phase-tag.fg { background: #12321f; color: var(--accent-2); border: 1px solid #1f5236; }
+  .phase-title { font-size: 15px; font-weight: 600; }
+  .phase-note { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  .row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .box {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    flex: 1 1 150px;
+    min-width: 150px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .box .label { font-size: 13px; font-weight: 600; }
+  .box .detail { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+  .box.emph { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .box.real { border-color: var(--accent-2); }
+  .box.real .label { color: var(--accent-2); }
+
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    color: var(--muted);
+    font-size: 18px;
+    flex: 0 0 auto;
+  }
+
+  .code {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: #0d1420;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  .thesis {
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .thesis b { color: var(--text); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="kicker">wardrobe-mcp — architecture</p>
+    <h1>The renderer bridge</h1>
+    <p class="subhead">One tool contract — <code class="code" style="display:inline;padding:2px 6px;">apply_tryon</code> — <b>two transports</b></p>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-tag bg">background</span>
+        <span class="phase-title">Pre-computed — on seed, or when a garment is added</span>
+        <span class="phase-note">never inside a tool call</span>
+      </div>
+      <div class="row">
+        <div class="box">
+          <span class="label">wardrobe-mcp</span>
+          <span class="detail">render worker launches headless Chromium (Playwright)</span>
+          <span class="code">channel: "chromium"</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box emph">
+          <span class="label">try-on app</span>
+          <span class="detail">the real, deployed app — opened headless, same URL a person uses</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box real">
+          <span class="label">apply_tryon()</span>
+          <span class="detail">the app's own WebMCP tool, called in-browser</span>
+          <span class="code">document.modelContext<br>.tools.get("apply_tryon")<br>.execute({garmentId})</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box real">
+          <span class="label">real on-device ML</span>
+          <span class="detail">WebGPU / Wasm inference — genuine render, not a mock</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box">
+          <span class="label">snapshot → S3</span>
+          <span class="detail">canvas pulled out, stored under a salted, content-addressed key</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-head">
+        <span class="phase-tag fg">request time</span>
+        <span class="phase-title">What Alexa+ actually calls</span>
+        <span class="phase-note">always a cache read</span>
+      </div>
+      <div class="row">
+        <div class="box">
+          <span class="label">Alexa+</span>
+          <span class="detail">"show me the magenta one on me"</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box">
+          <span class="label">preview_look</span>
+          <span class="detail">MCP tool call, Streamable HTTP</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box">
+          <span class="label">DynamoDB</span>
+          <span class="detail">cache-key lookup only</span>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box emph">
+          <span class="label">CloudFront URL</span>
+          <span class="detail">the image already rendered above</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="thesis">Measured from a real us-east-1 CloudShell: <b>under 150&nbsp;ms</b> — well inside Alexa+'s 500&nbsp;ms budget.</p>
+  </div>
+</body>
+</html>
