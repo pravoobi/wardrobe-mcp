@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { requireWrite, type ToolContext } from "../context.js";
 import { toolResult, errorResult } from "../responses.js";
+import { getGarment } from "../../catalog/catalog.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ReactionKind } from "../../store/types.js";
 
@@ -15,12 +16,15 @@ export const recordReactionSchema = {
 const Input = z.object(recordReactionSchema);
 export type RecordReactionInput = z.infer<typeof Input>;
 
-// Same guidance strings as try-on's `await_reaction` — they drive the next turn.
+// Speakable replies — per the tool contract, `text` must be something Alexa+ can read
+// aloud verbatim, not an instruction for an LLM to act on. `structuredContent.guidance`
+// keeps the same semantic meaning (same four cases as try-on's `await_reaction`) for a
+// client that wants to reason about what to do next.
 const GUIDANCE: Record<ReactionKind, string> = {
-  love: "They love it. Confirm the choice and offer the purchase link.",
-  like: "They like it. Ask if they want to see another option or lock this one in.",
-  try_another: "Not quite. Suggest the next candidate and preview it.",
-  reject: "They rejected it. Drop this direction and ask what to change — colour, fit, or formality.",
+  love: "Loved it — I'll get you the purchase link for this one.",
+  like: "Glad you like it. Want to see another option, or should we lock this one in?",
+  try_another: "No problem, let's see the next option.",
+  reject: "Got it — want to try a different colour, fit, or something more formal?",
 };
 
 export async function recordReaction(
@@ -42,8 +46,15 @@ export async function recordReaction(
   });
 
   const guidance = GUIDANCE[input.reaction];
+  const purchaseUrl = input.reaction === "love" ? getGarment(look.garmentId)?.meta.productUrl : undefined;
+
   return toolResult({
     text: guidance,
-    structuredContent: { lookId: input.lookId, reaction: input.reaction, guidance },
+    structuredContent: {
+      lookId: input.lookId,
+      reaction: input.reaction,
+      guidance,
+      ...(purchaseUrl ? { purchaseUrl } : {}),
+    },
   });
 }

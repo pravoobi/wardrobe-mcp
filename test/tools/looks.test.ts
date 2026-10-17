@@ -40,7 +40,13 @@ describe("look flow", () => {
     expect(sc.missing).toEqual([]);
 
     const react = await recordReaction({ lookId: "look-1", reaction: "love" }, ctx);
-    expect((react.structuredContent as { guidance: string }).guidance).toMatch(/purchase link/i);
+    const reactSc = react.structuredContent as { guidance: string; purchaseUrl?: string };
+    expect(reactSc.guidance).toMatch(/purchase link/i);
+    expect(reactSc.purchaseUrl).toMatch(/^https:\/\//);
+
+    // Only "love" attaches a purchase link — other reactions don't offer one.
+    const reject = await recordReaction({ lookId: "look-2", reaction: "reject" }, ctx);
+    expect((reject.structuredContent as { purchaseUrl?: string }).purchaseUrl).toBeUndefined();
   });
 
   it("compare reports missing ids instead of erroring when 2+ resolve", async () => {
