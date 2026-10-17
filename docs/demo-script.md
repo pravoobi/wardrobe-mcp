@@ -25,7 +25,7 @@ Shot list follows the sangeet flow exactly as verified end-to-end in the simulat
 | 1:40–2:00 | "Compare them." | `compare_looks` → the side-by-side sheet appears on screen. "Go with the magenta." → `record_reaction(love)` → confirms and offers the purchase link. |
 | 2:00–2:30 | One diagram: the renderer bridge — `/simulator/renderer-bridge.html` (e.g. `https://ba93fetekm.us-east-1.awsapprunner.com/simulator/renderer-bridge.html`). | "Here's the part that makes the preview possible at all. The try-on pipeline is on-device ML, browser-only — so instead of reimplementing it, the server drives the *deployed app's own* rendering, headless, and pulls the exact frame back out. That's a real browser doing real inference, not a mock. And because every render is pre-computed, the tool call itself is just a cache read — measured under 150 milliseconds from AWS's own us-east-1, well inside Alexa+'s 500 millisecond budget." |
 | 2:30–2:50 | AWS + open source. Cut back to the simulator or a quick shot of the AWS console / `docs/aws.md` — no new screen required, this can play over whatever's already up. | "Behind this is real AWS — App Runner hosts it, S3 and CloudFront serve the images, DynamoDB stores the wardrobe, Bedrock tags garments and reasons when it's available. The try-on app rendering it predates this hackathon; everything else — the MCP server, OAuth login, the renderer bridge, the AWS deployment, this whole repo — is new, MIT-licensed, built during the window." |
-| 2:50–3:00 | Close. | The thesis line: "Alexa+ is the stylist's voice; this is the stylist's memory and eyes." |
+| 2:50–3:00 | Close. Hold on the Echo Show with a render still up (the compare sheet reads well here). End card / lower third: the live URL, plus the thesis line as **on-screen text only** — "Alexa+ is the stylist's voice; this is the stylist's memory and eyes." | "So you never have to imagine it. You just look — and then you decide. It's live right now; the link's on screen." |
 
 ## Notes for whoever records this
 
@@ -60,6 +60,16 @@ Shot list follows the sangeet flow exactly as verified end-to-end in the simulat
   `compare_looks` cache hit 123 ms. If these are re-measured before recording and come
   back meaningfully different, update both this line and `docs/aws.md` together — don't
   let the two drift.
+- **The open and the close are one sentence, split in half.** 0:00 sets up *"you have to
+  imagine it"*; 2:50 pays it off with *"you never have to imagine it."* If you reword one,
+  reword the other — breaking the pair costs the video its ending. The old thesis line
+  ("the stylist's voice… memory and eyes") is kept as on-screen text rather than VO: it
+  reads fine silently, but spoken at 2:50 it restates the concept abstractly at the exact
+  moment the viewer has just *watched* it work, and "eyes" is slightly off anyway — the
+  system doesn't see the customer, it shows them.
+- **Land the close before 3:00, not at it.** Judges aren't required to watch past the
+  three-minute mark, so the final word should land around 2:55. The VO as written is ~22
+  words, about 9 seconds — it fits with room to spare.
 - **The 2:30–2:50 beat isn't filler** — it's satisfying two specific, separate Devpost
   requirements, not telling the product story: (1) the AWS Builder mini challenge
   requires actually naming the AWS services used on screen, and (2) Devpost's
