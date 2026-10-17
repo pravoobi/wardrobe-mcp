@@ -37,6 +37,8 @@ interface HistoryContext {
   previewsSinceSuggest: number;
   lastPreviewedGarmentId?: string;
   savedLookIds: string[];
+  savedLooks: { lookId: string; garmentId: string }[];
+  nameByGarmentId: Record<string, string>;
 }
 
 function toolUseId(): string {
@@ -54,7 +56,13 @@ function safeParse(text: string | undefined): { spoken?: string; structuredConte
 
 function buildContext(messages: ConvMessage[]): HistoryContext {
   const toolNameByUseId = new Map<string, string>();
-  const ctx: HistoryContext = { options: [], previewsSinceSuggest: 0, savedLookIds: [] };
+  const ctx: HistoryContext = {
+    options: [],
+    previewsSinceSuggest: 0,
+    savedLookIds: [],
+    savedLooks: [],
+    nameByGarmentId: {},
+  };
 
   for (const msg of messages) {
     for (const block of msg.content) {
@@ -68,15 +76,37 @@ function buildContext(messages: ConvMessage[]): HistoryContext {
       if (name === "suggest_outfits" && Array.isArray(sc.options)) {
         ctx.options = sc.options as SuggestOption[];
         ctx.previewsSinceSuggest = 0;
+        for (const o of ctx.options) {
+          if (o.name) ctx.nameByGarmentId[o.garmentId] = o.name;
+        }
       } else if (name === "preview_look") {
         ctx.previewsSinceSuggest += 1;
         if (typeof sc.garmentId === "string") ctx.lastPreviewedGarmentId = sc.garmentId;
       } else if (name === "save_look" && typeof sc.lookId === "string") {
         ctx.savedLookIds.push(sc.lookId);
+        if (Array.isArray(sc.looks)) {
+          ctx.savedLooks = (sc.looks as { lookId: string; garmentId: string }[]).map((l) => ({
+            lookId: l.lookId,
+            garmentId: l.garmentId,
+          }));
+        }
       }
     }
   }
   return ctx;
+}
+
+/** Resolve "go with the magenta one" / "I love the first one" etc. to a saved
+ * look by matching garment-name words against the utterance; falls back to
+ * the most recently saved look when nothing names one specifically. */
+function findReactionTarget(low: string, ctx: HistoryContext): string | undefined {
+  for (const sl of ctx.savedLooks) {
+    const name = ctx.nameByGarmentId[sl.garmentId];
+    if (!name) continue;
+    const words = name.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+    if (words.some((w) => low.includes(w))) return sl.lookId;
+  }
+  return ctx.savedLookIds[ctx.savedLookIds.length - 1];
 }
 
 const OCCASIONS = [
@@ -141,7 +171,7 @@ const CLARIFY = {
   notEnoughSaved: "You need at least two saved looks before I can compare them — save another one first.",
   noReactionTarget: "I don't have a saved look to react to yet — save one first.",
   unrecognized:
-    "I'm using the offline demo reasoner right now, so I only understand a few things: asking about an occasion and budget, \"show me the first/second/another one\", \"save that\", \"compare them\", or how you felt about a look.",
+    "I'm using the offline demo reasoner right now, so I only understand a few things: asking about an occasion and budget, \"show me the first/second/another one\", \"save that\", \"compare them\", or how you felt about a look — like \"go with the magenta one\" or \"I don't like that one\".",
 };
 
 /**
@@ -181,13 +211,13 @@ export function reason(messages: ConvMessage[], _tools: unknown[]): ReasonResult
     return toolUseMessage("save_look", { garmentId: ctx.lastPreviewedGarmentId });
   }
 
-  if (/\b(love|amazing|perfect|beautiful)\b/.test(low)) {
-    const lookId = ctx.savedLookIds[ctx.savedLookIds.length - 1];
+  if (/\b(love|amazing|perfect|beautiful|go with|go for|choose|chose|pick|i'?ll take|i like)\b/.test(low)) {
+    const lookId = findReactionTarget(low, ctx);
     if (!lookId) return textMessage(CLARIFY.noReactionTarget);
     return toolUseMessage("record_reaction", { lookId, reaction: "love" });
   }
   if (/\b(reject|no thanks|not (this|that) one|hate)\b/.test(low)) {
-    const lookId = ctx.savedLookIds[ctx.savedLookIds.length - 1];
+    const lookId = findReactionTarget(low, ctx);
     if (!lookId) return textMessage(CLARIFY.noReactionTarget);
     return toolUseMessage("record_reaction", { lookId, reaction: "reject" });
   }

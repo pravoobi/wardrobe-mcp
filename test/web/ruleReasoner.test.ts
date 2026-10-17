@@ -128,7 +128,10 @@ describe("ruleReasoner: the full sangeet flow, turn by turn", () => {
     messages.push(user("Save that."));
     r = reason(messages, []);
     expect(r.message.content[0]!.toolUse).toMatchObject({ name: "save_look", input: { garmentId: "g1" } });
-    messages = withToolRoundTrip(messages, "save_look", { garmentId: "g1" }, "Saved as look-1.", { lookId: "look-1" });
+    messages = withToolRoundTrip(messages, "save_look", { garmentId: "g1" }, "Saved as look-1.", {
+      lookId: "look-1",
+      looks: [{ lookId: "look-1", garmentId: "g1" }],
+    });
 
     // 4. "Now show me another option."
     messages.push(user("Now show me another option."));
@@ -140,11 +143,70 @@ describe("ruleReasoner: the full sangeet flow, turn by turn", () => {
     messages.push(user("Save that."));
     r = reason(messages, []);
     expect(r.message.content[0]!.toolUse).toMatchObject({ name: "save_look", input: { garmentId: "g2" } });
-    messages = withToolRoundTrip(messages, "save_look", { garmentId: "g2" }, "Saved as look-2.", { lookId: "look-2" });
+    messages = withToolRoundTrip(messages, "save_look", { garmentId: "g2" }, "Saved as look-2.", {
+      lookId: "look-2",
+      looks: [
+        { lookId: "look-1", garmentId: "g1" },
+        { lookId: "look-2", garmentId: "g2" },
+      ],
+    });
 
     // 6. "Compare them."
     messages.push(user("Compare them."));
     r = reason(messages, []);
     expect(r.message.content[0]!.toolUse).toMatchObject({ name: "compare_looks", input: { lookIds: ["look-1", "look-2"] } });
+
+    // 7. "Go with the magenta." — names look-1 (Magenta Set) even though
+    // look-2 was saved more recently.
+    messages.push(user("Go with the magenta."));
+    r = reason(messages, []);
+    expect(r.message.content[0]!.toolUse).toMatchObject({
+      name: "record_reaction",
+      input: { lookId: "look-1", reaction: "love" },
+    });
+  });
+});
+
+describe("ruleReasoner: record_reaction phrasing", () => {
+  it("'go with the magenta one' resolves the named look, not just the last saved one", () => {
+    const messages = withToolRoundTrip(
+      [user("I have a sangeet, budget 8000")],
+      "suggest_outfits",
+      { occasion: "sangeet", budget: 8000 },
+      "Here are three options.",
+      { options: [{ garmentId: "g1", name: "Magenta Wrap Maxi Dress" }, { garmentId: "g2", name: "Navy Set" }] },
+    );
+    const withSaves = withToolRoundTrip(messages, "save_look", { garmentId: "g2" }, "Saved as look-2.", {
+      lookId: "look-2",
+      looks: [
+        { lookId: "look-1", garmentId: "g1" },
+        { lookId: "look-2", garmentId: "g2" },
+      ],
+    });
+    withSaves.push(user("Go with the magenta one."));
+    const r = reason(withSaves, []);
+    expect(r.message.content[0]!.toolUse).toMatchObject({
+      name: "record_reaction",
+      input: { lookId: "look-1", reaction: "love" },
+    });
+  });
+
+  it("falls back to the most recently saved look when nothing names one specifically", () => {
+    const messages = withToolRoundTrip([user("save that")], "save_look", { garmentId: "g1" }, "Saved as look-1.", {
+      lookId: "look-1",
+      looks: [{ lookId: "look-1", garmentId: "g1" }],
+    });
+    messages.push(user("I love it, go with that one."));
+    const r = reason(messages, []);
+    expect(r.message.content[0]!.toolUse).toMatchObject({
+      name: "record_reaction",
+      input: { lookId: "look-1", reaction: "love" },
+    });
+  });
+
+  it("'not that one' with no saved look yet clarifies instead of guessing", () => {
+    const r = reason([user("not that one")], []);
+    expect(r.stopReason).toBe("end_turn");
+    expect(r.message.content[0]!.text).toMatch(/don't have a saved look to react to/i);
   });
 });
