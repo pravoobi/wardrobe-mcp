@@ -53,10 +53,57 @@
     color: #ffcd85;
     border: 1px solid #5a4420;
   }
-  .disclaimer {
-    font-size: 12px;
+  .info {
+    position: relative;
+    display: inline-flex;
+  }
+  .info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
     color: var(--muted);
-    max-width: 640px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: help;
+    user-select: none;
+  }
+  .info-icon:hover,
+  .info-icon:focus {
+    color: var(--text);
+    border-color: var(--accent);
+    outline: none;
+  }
+  .info-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 10;
+    width: 320px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 12px 28px -8px rgba(0,0,0,0.5);
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+  }
+  .info-icon:hover + .info-popover,
+  .info-icon:focus + .info-popover {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (max-width: 520px) {
+    .info-popover { left: auto; right: 0; width: min(320px, 80vw); }
   }
   #connectBtn {
     background: var(--accent);
@@ -281,13 +328,18 @@
 </head>
 <body>
   <header>
-    <h1>🗣️ wardrobe-mcp <span class="badge">SIMULATED ALEXA+</span></h1>
-    <div class="disclaimer">
-      This is a simulated Alexa+ experience in a web app — the Alexa+ MCP Toolkit console is
-      currently partner-gated ("coming soon"), so this page drives the real, deployed
-      wardrobe-mcp server over Streamable HTTP with a real OAuth 2.1 login, exactly as Alexa+
-      would.
-    </div>
+    <h1>
+      🗣️ wardrobe-mcp <span class="badge">SIMULATED ALEXA+</span>
+      <span class="info">
+        <span class="info-icon" tabindex="0" aria-describedby="infoPopover">?</span>
+        <span class="info-popover" id="infoPopover" role="tooltip">
+          This is a simulated Alexa+ experience in a web app — the Alexa+ MCP Toolkit console is
+          currently partner-gated ("coming soon"), so this page drives the real, deployed
+          wardrobe-mcp server over Streamable HTTP with a real OAuth 2.1 login, exactly as Alexa+
+          would.
+        </span>
+      </span>
+    </h1>
     <div style="display:flex; align-items:center; gap:10px;">
       <span id="status">not connected</span>
       <button id="connectBtn" type="button">Connect</button>
