@@ -204,6 +204,23 @@ describe("ruleReasoner: record_reaction phrasing", () => {
     });
   });
 
+  it("'I like look 2' resolves by the stated number, not just the last saved look", () => {
+    const messages = withToolRoundTrip([user("save that")], "save_look", { garmentId: "g3" }, "Saved as look-3.", {
+      lookId: "look-3",
+      looks: [
+        { lookId: "look-1", garmentId: "g1" },
+        { lookId: "look-2", garmentId: "g2" },
+        { lookId: "look-3", garmentId: "g3" },
+      ],
+    });
+    messages.push(user("I like look 2 instead."));
+    const r = reason(messages, []);
+    expect(r.message.content[0]!.toolUse).toMatchObject({
+      name: "record_reaction",
+      input: { lookId: "look-2", reaction: "love" },
+    });
+  });
+
   it("'not that one' with no saved look yet clarifies instead of guessing", () => {
     const r = reason([user("not that one")], []);
     expect(r.stopReason).toBe("end_turn");

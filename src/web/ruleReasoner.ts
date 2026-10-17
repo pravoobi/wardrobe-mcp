@@ -96,10 +96,20 @@ function buildContext(messages: ConvMessage[]): HistoryContext {
   return ctx;
 }
 
-/** Resolve "go with the magenta one" / "I love the first one" etc. to a saved
- * look by matching garment-name words against the utterance; falls back to
- * the most recently saved look when nothing names one specifically. */
+/** Resolve "go with the magenta one" / "I like look 2" / "I love the first
+ * one" etc. to a saved look: an explicit "look N" reference wins outright
+ * (ids are literally "look-1", "look-2", ... — see Store.addLook), then a
+ * garment-name word match, then falls back to the most recently saved look
+ * when nothing names one specifically. */
 function findReactionTarget(low: string, ctx: HistoryContext): string | undefined {
+  const explicit = /\blook[\s-]?(\d+)\b/i.exec(low);
+  if (explicit) {
+    const id = `look-${explicit[1]}`;
+    // Check the full saved-looks snapshot (from save_look's own structuredContent.looks),
+    // not just savedLookIds — that list only grows from save_look calls seen in *this*
+    // history and can miss looks saved earlier (e.g. before this conversation's window).
+    if (ctx.savedLooks.some((sl) => sl.lookId === id) || ctx.savedLookIds.includes(id)) return id;
+  }
   for (const sl of ctx.savedLooks) {
     const name = ctx.nameByGarmentId[sl.garmentId];
     if (!name) continue;
