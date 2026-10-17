@@ -8,24 +8,30 @@ logos. Screen-recorded from the **live deployed simulator**, not localhost:
 (source: `web/simulator.html`; Phase 4's real Alexa+ add-on is unavailable — the MCP
 Toolkit console is partner-gated, "coming soon"; see friction log #8). Devpost's
 simulated-experience path requires the demo to **clearly show it's simulated** — the
-on-screen banner in the simulator UI already says so, and the VO says it once, plainly,
-in the first 20 seconds. Don't apologize for it or dwell on it either — say it once and
+**SIMULATED ALEXA+** badge in the simulator header is always visible (the longer
+explanation is behind the `?` popover next to it), and the VO says it once, plainly, in
+the first 20 seconds. Don't apologize for it or dwell on it either — say it once and
 move on to what actually works: a real MCP server, real OAuth 2.1, real renders.
 
 Shot list follows the sangeet flow exactly as verified end-to-end in the simulator
-(2026-09-07) — no invented dialogue, this is the literal transcript.
+(2026-09-07). The dialogue with the app is the literal transcript — nothing invented; the
+**VO text** column is written narration spoken over it.
 
-| Time | Shot | VO / on-screen |
-|---|---|---|
-| 0:00–0:20 | Cold open on the simulator UI. Click **Connect** → real OAuth redirect → "Continue as Praveen" → back, connected. | "When a voice assistant suggests an outfit, you have to imagine it. This one doesn't make you — it shows you, wearing it, before you decide. [beat] This is a simulated Alexa+ experience — the real add-ons console is invite-only right now — but everything behind it is real: a self-hosted MCP server, OAuth 2.1 with PKCE, over Streamable HTTP." |
-| 0:20–0:35 | Type/say the opener. | "I have a sangeet on Saturday. What should I wear? Budget eight thousand." → `suggest_outfits` tool-call bubble → Alexa+ reads 3 options (Magenta Wrap Maxi Dress, Cream Embroidered Kurti, Emerald Floral Midi Dress). |
-| 0:35–1:00 | "Show me the first one on me." | `preview_look` → the rendered try-on appears on the simulated Echo Show screen. |
-| 1:00–1:15 | "Save that." | `save_look` → "Saved as look-1." |
-| 1:15–1:40 | "Now show me another option." → "Save that." | Second render appears (Cream Embroidered Kurti) → saved as look-2. |
-| 1:40–2:00 | "Compare them." | `compare_looks` → the side-by-side sheet appears on screen. "Go with the magenta." → `record_reaction(love)` → confirms and offers the purchase link. |
-| 2:00–2:30 | One diagram: the renderer bridge — `/simulator/renderer-bridge.html` (e.g. `https://ba93fetekm.us-east-1.awsapprunner.com/simulator/renderer-bridge.html`). | "Here's the part that makes the preview possible at all. The try-on pipeline is on-device ML, browser-only — so instead of reimplementing it, the server drives the *deployed app's own* rendering, headless, and pulls the exact frame back out. That's a real browser doing real inference, not a mock. And because every render is pre-computed, the tool call itself is just a cache read — measured under 150 milliseconds from AWS's own us-east-1, well inside Alexa+'s 500 millisecond budget." |
-| 2:30–2:50 | AWS + open source. Cut back to the simulator or a quick shot of the AWS console / `docs/aws.md` — no new screen required, this can play over whatever's already up. | "Behind this is real AWS — App Runner hosts it, S3 and CloudFront serve the images, DynamoDB stores the wardrobe, Bedrock tags garments and reasons when it's available. The try-on app rendering it predates this hackathon; everything else — the MCP server, OAuth login, the renderer bridge, the AWS deployment, this whole repo — is new, MIT-licensed, built during the window." |
-| 2:50–3:00 | Close. Hold on the Echo Show with a render still up (the compare sheet reads well here). End card / lower third: the live URL, plus the thesis line as **on-screen text only** — "Alexa+ is the stylist's voice; this is the stylist's memory and eyes." | "So you never have to imagine it. You just look — and then you decide. It's live right now; the link's on screen." |
+Columns: **Shot** = what to do on screen. **On-screen text** = text burned in during edit
+(lower thirds, labels, end card) — the app's own UI text is in the Shot column, not here.
+**VO text** = the words spoken, verbatim.
+
+| Time | Shot | On-screen text | VO text |
+|---|---|---|---|
+| 0:00–0:20 | Cold open on the live simulator. Click **Connect** → real OAuth redirect → "Continue as Praveen" → back, header reads `connected — 10 tools`. | Lower third, first ~5 s: `wardrobe-mcp — a self-hosted MCP server for Alexa+`. Keep the UI's own **SIMULATED ALEXA+** badge legible for the whole shot — that badge is the Devpost disclosure, don't crop it. | "When a voice assistant suggests an outfit, you have to imagine it. This one doesn't make you — it shows you, wearing it, before you decide. [beat] This is a simulated Alexa+ experience — the real add-ons console is invite-only right now — but everything behind it is real: a self-hosted MCP server, OAuth 2.1 with PKCE, over Streamable HTTP." |
+| 0:20–0:35 | Click the first quick phrase. A `suggest_outfits` tool-call bubble appears, then Alexa+'s reply with 3 options — Magenta Wrap Maxi Dress, Cream Embroidered Kurti, Emerald Floral Midi Dress. | None — let the transcript bubbles carry it. | "I have a sangeet on Saturday. What should I wear? Budget eight thousand." [let the reply land] "Three options, ranked, each with a reason — and that ranking is deterministic server-side, not the model guessing." |
+| 0:35–1:00 | "Show me the first one on me." → `preview_look` → the render fills the Echo Show screen. Hold on it; this is the money shot, give it room. | Optional small label over the screen: `real render · the customer's own photo`. | "Show me the first one on me. [beat] And that's not a stock photo or a mock-up — that's the dress actually rendered onto her own photo, by the same on-device model a person gets in the browser." |
+| 1:00–1:15 | "Save that." → `save_look` → "Saved as look-1." | None. | "Save that. [beat] It's kept — the look itself, and in a moment, how she felt about it." |
+| 1:15–1:40 | "Now show me another option." → second render appears (Cream Embroidered Kurti) → "Save that." → saved as look-2. | None. | "Now show me another option. [beat] Save that. [beat] Two saved looks now, both real renders, both held in state across turns — this isn't one-shot question and answer." |
+| 1:40–2:00 | "Compare them." → `compare_looks` → the side-by-side sheet fills the screen. Then "Go with the magenta." → `record_reaction(love)` → Alexa+ confirms and offers the purchase link. | None. | "Compare them. [beat] Side by side, composed server-side from the two renders it already had. Go with the magenta — and it records that reaction, which is what shapes what it says next time." |
+| 2:00–2:30 | Cut to the renderer-bridge diagram: `/simulator/renderer-bridge.html` (e.g. `https://ba93fetekm.us-east-1.awsapprunner.com/simulator/renderer-bridge.html`). Static page — no clicking; let it sit, or push in slowly. | All text is in the page itself (two phases: background pre-compute, then request time). Add nothing. | "Here's the part that makes the preview possible at all. The try-on pipeline is on-device ML, browser-only — so instead of reimplementing it, the server drives the *deployed app's own* rendering, headless, and pulls the exact frame back out. That's a real browser doing real inference, not a mock. And because every render is pre-computed, the tool call itself is just a cache read — measured under 150 milliseconds from AWS's own us-east-1, well inside Alexa+'s 500 millisecond budget." |
+| 2:30–2:50 | AWS + open source. No new screen required — cut back to the simulator, or a quick pass over the AWS console / `docs/aws.md`. This can play over whatever's already up. | Overlay the stack as a plain list while it's named: `App Runner · S3 + CloudFront · DynamoDB · Bedrock · ECR — all us-east-1`. | "Behind this is real AWS — App Runner hosts it, S3 and CloudFront serve the images, DynamoDB stores the wardrobe, Bedrock tags garments and reasons when it's available. The try-on app rendering it predates this hackathon; everything else — the MCP server, OAuth login, the renderer bridge, the AWS deployment, this whole repo — is new, MIT-licensed, built during the window." |
+| 2:50–3:00 | Close. Hold on the Echo Show with a render still up — the compare sheet reads best here. | End card / lower third: the live URL `ba93fetekm.us-east-1.awsapprunner.com/simulator`, the repo `github.com/pravoobi/wardrobe-mcp`, and the thesis line as **text only, never spoken** — "Alexa+ is the stylist's voice; this is the stylist's memory and eyes." | "So you never have to imagine it. You just look — and then you decide. It's live right now; the link's on screen." |
 
 ## Notes for whoever records this
 
@@ -53,6 +59,11 @@ Shot list follows the sangeet flow exactly as verified end-to-end in the simulat
 - Say the sample phrases exactly as written above — they're what the rule-based fallback
   (and the real Bedrock path) are tuned to understand cleanly, so the flow won't stall on
   a rephrasing mid-recording.
+- In the 0:20–2:00 rows, the **quoted** parts of the VO text are the customer utterances —
+  speak them as if talking to the device, then click the matching quick phrase (or type
+  it) so the screen follows your voice. The unquoted parts are narration; keep them short
+  and let the render land in silence. `[beat]` means stop talking — these beats are where
+  the image appears, and talking over it is the one way to waste the best shot.
 - The "under 150 milliseconds" line at 2:00–2:30 is real, not a round-number guess — see
   `docs/aws.md`'s Latency section (measured 2026-10-14 from an actual AWS CloudShell
   session in us-east-1, against the deployed App Runner URL, not a dev machine):
