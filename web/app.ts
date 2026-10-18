@@ -98,6 +98,26 @@ function showOnScreen(dataUrl: string): void {
   img.alt = "rendered look";
   screenEl.appendChild(img);
 }
+/** Surfaces a tool result's `structuredContent.purchaseUrl` as an actual
+ * clickable link — the only part of a tool result other than `text` (spoken)
+ * and `image` that app.ts renders at all, so without this the link only
+ * ever existed in JSON no one could see. */
+function addLinkBubble(url: string): void {
+  const div = document.createElement("div");
+  div.className = "bubble link";
+  const who = document.createElement("span");
+  who.className = "who";
+  who.textContent = "purchase link";
+  div.appendChild(who);
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.textContent = "View on try-on";
+  div.appendChild(a);
+  transcriptEl.appendChild(div);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+}
 
 // -------------------------------------------------------------- PKCE ----
 function b64url(bytes: Uint8Array): string {
@@ -270,6 +290,8 @@ async function sendTurn(userText: string): Promise<void> {
             | { type: "image"; data: string; mimeType: string }
             | undefined;
           if (image) showOnScreen(`data:${image.mimeType};base64,${image.data}`);
+          const purchaseUrl = (result.structuredContent as { purchaseUrl?: unknown } | undefined)?.purchaseUrl;
+          if (typeof purchaseUrl === "string") addLinkBubble(purchaseUrl);
           resultBlocks.push({
             toolResult: {
               toolUseId: tu.toolUseId,
