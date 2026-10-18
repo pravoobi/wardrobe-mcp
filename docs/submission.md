@@ -1,5 +1,14 @@
 # Devpost submission — draft
 
+**Project name:** Wardrobe MCP
+**Elevator pitch:** A self-hosted MCP server that gives Alexa+ a wardrobe. It suggests
+outfits, shows you wearing them on your own photo through a real try-on app, and remembers
+what you picked.
+**About the project:** full Inspiration / What it does / How we built it / Challenges /
+Accomplishments / What we learned / What's next writeup is in
+[`devpost-story.md`](devpost-story.md) — paste its sections directly into the Devpost
+"About the project" field.
+
 ## Tracks / challenges
 
 - **Track:** Alexa+ — **simulated Alexa+ experience** (the add-ons/MCP Toolkit console is
