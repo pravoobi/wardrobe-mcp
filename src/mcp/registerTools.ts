@@ -12,6 +12,7 @@ import { compareLooks, compareLooksSchema } from "./tools/compareLooks.js";
 import { recordReaction, recordReactionSchema } from "./tools/recordReaction.js";
 import { addToWardrobe, addToWardrobeSchema } from "./tools/addToWardrobe.js";
 import { planWeek, planWeekSchema } from "./tools/planWeek.js";
+import { placeOrder, placeOrderSchema } from "./tools/placeOrder.js";
 
 /**
  * The whole tool contract in one place. Names follow the try-on WebMCP tools so
@@ -125,5 +126,13 @@ export function registerWardrobeTools(server: McpServer, ctx: ToolContext): void
     planWeekSchema,
     { readOnlyHint: true },
     planWeek,
+  );
+
+  tool(
+    "place_order",
+    "Place a simulated order for a saved look in a given size. No real payment is taken and nothing ships — say so plainly, don't imply a real purchase happened. Ask for a size first if the customer hasn't given one.",
+    placeOrderSchema,
+    {},
+    placeOrder,
   );
 }

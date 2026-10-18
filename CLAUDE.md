@@ -226,6 +226,7 @@ tools add an `image` content block (base64 WEBP ≤ 200 KB) **and** an HTTPS URL
 | `compare_looks` | `{ lookIds: string[] (2–3) }` | image (side-by-side) + `{ compareUrl, looks[] }` | Composed with `sharp` from cached renders; missing ids reported, not errored (same behavior as try-on). |
 | `record_reaction` | `{ lookId, reaction: "love" \| "like" \| "try_another" \| "reject", note? }` | `{ guidance }` | Same guidance strings as try-on's `await_reaction`; drives the next turn. |
 | `add_to_wardrobe` | `{ garmentId }` | updated wardrobe | Triggers background pre-render for all user photos. |
+| `place_order` | `{ lookId, size: "XS"\|"S"\|"M"\|"L"\|"XL"\|"XXL" }` | `{ orderId, deliveryDate, purchaseUrl?, simulated: true }` | **Simulated checkout, added 2026-10-18** — no real payment, no real shipment. Spoken text says so plainly every time. |
 
 Resources: `wardrobe://catalog` (read-only JSON), `wardrobe://looks/{lookId}`.
 Prompt: `style_me` — "Style {user} for {occasion} under {budget}" seeded with the loop:
@@ -408,6 +409,23 @@ moot until/unless that changes. Left here only as a record of what it would have
    across the week; unresolved days reported rather than erroring. Tool count is now 10
    — `test/fixtures/tools-list.json` regenerated deliberately, `scripts/smoke.ts` and
    `test/auth/bearer.test.ts`'s hardcoded counts updated to match.
+4. ✅ **Done 2026-10-18** — `place_order({ lookId, size })`: a deliberately-named-upfront
+   **simulated** checkout, not real purchasing (see Explicit non-goals). Added this late,
+   after the tool-name freeze, because it's purely additive — no existing tool's name or
+   schema changed — and it closes a real gap: `record_reaction`'s love-path promised to
+   "offer the purchase link" but the guidance string only ever told a (possibly absent)
+   LLM to say that, never actually attached one. Fixed alongside this: `record_reaction`'s
+   `GUIDANCE` strings were rewritten from LLM-facing instructions ("Confirm the choice and
+   offer the purchase link") into text that is actually speakable verbatim, per the tool
+   contract's own rule — the rule-based fallback reasoner (`src/web/ruleReasoner.ts`) was
+   relaying the old instruction-shaped text aloud, which read as a stage direction, not a
+   reply. The fallback reasoner also gained matching for "place the order in size M" /
+   "buy it in size large" / "checkout" (resolving which saved look via the same
+   look-number/garment-name logic already used for "go with the magenta one", and asking
+   for a size — never guessing one — when none is stated), so the new tool is actually
+   reachable with Bedrock down, not just on paper. Tool count is now 11 —
+   `test/fixtures/tools-list.json` regenerated deliberately, `scripts/smoke.ts` and
+   `test/auth/bearer.test.ts`'s hardcoded counts updated to match.
 
 ### Phase 7 — Ship (Oct 13–23)
 - README: diagram, GIF, one-command local run — ✅ **done 2026-09-07**:
@@ -508,7 +526,11 @@ moot until/unless that changes. Left here only as a record of what it would have
 
 ## Explicit non-goals (v1)
 
-- No purchasing / checkout — `search_catalog` returns a product URL; Alexa+ can read it out.
+- No **real** purchasing / checkout — no PCI-compliant payment handling, no real
+  inventory or shipping. `search_catalog` returns a product URL Alexa+ can read out
+  directly, and `place_order` (added 2026-10-18) simulates a checkout — size, a "card on
+  file" that is never real, a computed delivery date — for a believable final beat on the
+  demo. It says plainly, every time, that no real payment was made.
 - No saree support (inherits try-on's limitation; say so if asked).
 - No multi-tenant brand catalogs, no admin UI, no analytics.
 - No Fire TV / Ring / Bee cross-track work — one track, done well, plus two cheap mini

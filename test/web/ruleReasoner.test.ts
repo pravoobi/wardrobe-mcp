@@ -227,3 +227,50 @@ describe("ruleReasoner: record_reaction phrasing", () => {
     expect(r.message.content[0]!.text).toMatch(/don't have a saved look to react to/i);
   });
 });
+
+describe("ruleReasoner: place_order phrasing", () => {
+  function savedLook(): ConvMessage[] {
+    return withToolRoundTrip([user("save that")], "save_look", { garmentId: "g1" }, "Saved as look-1.", {
+      lookId: "look-1",
+      looks: [{ lookId: "look-1", garmentId: "g1" }],
+    });
+  }
+
+  it("'place the order in size M' calls place_order with the saved look and parsed size", () => {
+    const messages = savedLook();
+    messages.push(user("Place the order in size M."));
+    const r = reason(messages, []);
+    expect(r.message.content[0]!.toolUse).toMatchObject({
+      name: "place_order",
+      input: { lookId: "look-1", size: "M" },
+    });
+  });
+
+  it("recognizes word-form sizes ('extra large', 'small')", () => {
+    const extraLarge = reason([...savedLook(), user("order it in size extra large")], []);
+    expect(extraLarge.message.content[0]!.toolUse).toMatchObject({ input: { size: "XL" } });
+
+    const small = reason([...savedLook(), user("buy it in size small")], []);
+    expect(small.message.content[0]!.toolUse).toMatchObject({ input: { size: "S" } });
+  });
+
+  it("a bare 's'/'m'/'l' elsewhere in the sentence is not mistaken for a size", () => {
+    const messages = savedLook();
+    messages.push(user("checkout"));
+    const r = reason(messages, []);
+    expect(r.stopReason).toBe("end_turn");
+    expect(r.message.content[0]!.text).toMatch(/what size/i);
+  });
+
+  it("asks for a size instead of guessing one when none is stated", () => {
+    const r = reason([...savedLook(), user("place my order")], []);
+    expect(r.stopReason).toBe("end_turn");
+    expect(r.message.content[0]!.text).toMatch(/what size/i);
+  });
+
+  it("clarifies instead of guessing a look when nothing has been saved yet", () => {
+    const r = reason([user("order it in size M")], []);
+    expect(r.stopReason).toBe("end_turn");
+    expect(r.message.content[0]!.text).toMatch(/don't have a saved look to order/i);
+  });
+});

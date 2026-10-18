@@ -5,6 +5,7 @@ import { saveLook } from "../../src/mcp/tools/saveLook.js";
 import { listLooks } from "../../src/mcp/tools/listLooks.js";
 import { compareLooks } from "../../src/mcp/tools/compareLooks.js";
 import { recordReaction } from "../../src/mcp/tools/recordReaction.js";
+import { placeOrder } from "../../src/mcp/tools/placeOrder.js";
 import type { ToolContext } from "../../src/mcp/context.js";
 
 const compareDone = (ctx: ToolContext, ids: string[]) =>
@@ -47,6 +48,32 @@ describe("look flow", () => {
     // Only "love" attaches a purchase link — other reactions don't offer one.
     const reject = await recordReaction({ lookId: "look-2", reaction: "reject" }, ctx);
     expect((reject.structuredContent as { purchaseUrl?: string }).purchaseUrl).toBeUndefined();
+  });
+
+  it("place_order is a simulated checkout — no real payment, clearly says so", async () => {
+    const { ctx } = await makeHarness();
+    await saveLook({ garmentId: "dress-magenta-wrap-01", label: "magenta" }, ctx);
+
+    const order = await placeOrder({ lookId: "look-1", size: "M" }, ctx);
+    expect(order.content[0]).toMatchObject({ type: "text" });
+    expect((order.content[0] as { text: string }).text).toMatch(/simulated order.*no real payment/i);
+
+    const sc = order.structuredContent as {
+      orderId: string;
+      size: string;
+      deliveryDate: string;
+      simulated: boolean;
+    };
+    expect(sc.orderId).toMatch(/^demo-order-/);
+    expect(sc.size).toBe("M");
+    expect(sc.deliveryDate.length).toBeGreaterThan(0);
+    expect(sc.simulated).toBe(true);
+  });
+
+  it("place_order on a missing look id errors instead of guessing", async () => {
+    const { ctx } = await makeHarness();
+    const order = await placeOrder({ lookId: "look-99", size: "M" }, ctx);
+    expect(order.isError).toBe(true);
   });
 
   it("compare reports missing ids instead of erroring when 2+ resolve", async () => {

@@ -96,11 +96,12 @@ function buildContext(messages: ConvMessage[]): HistoryContext {
   return ctx;
 }
 
-/** Resolve "go with the magenta one" / "I like look 2" / "I love the first
- * one" etc. to a saved look: an explicit "look N" reference wins outright
- * (ids are literally "look-1", "look-2", ... — see Store.addLook), then a
- * garment-name word match, then falls back to the most recently saved look
- * when nothing names one specifically. */
+/** Resolve "go with the magenta one" / "I like look 2" / "order it" etc. to
+ * a saved look — shared by the reaction and order-placement branches below:
+ * an explicit "look N" reference wins outright (ids are literally "look-1",
+ * "look-2", ... — see Store.addLook), then a garment-name word match, then
+ * falls back to the most recently saved look when nothing names one
+ * specifically. */
 function findReactionTarget(low: string, ctx: HistoryContext): string | undefined {
   const explicit = /\blook[\s-]?(\d+)\b/i.exec(low);
   if (explicit) {
@@ -117,6 +118,26 @@ function findReactionTarget(low: string, ctx: HistoryContext): string | undefine
     if (words.some((w) => low.includes(w))) return sl.lookId;
   }
   return ctx.savedLookIds[ctx.savedLookIds.length - 1];
+}
+
+const SIZE_ALIASES: Record<string, "XS" | "S" | "M" | "L" | "XL" | "XXL"> = {
+  "extra small": "XS",
+  xs: "XS",
+  small: "S",
+  s: "S",
+  medium: "M",
+  m: "M",
+  large: "L",
+  l: "L",
+  "extra large": "XL",
+  xl: "XL",
+  xxl: "XXL",
+};
+// Requires the word "size" right before it — bare "s"/"m"/"l" are too common
+// as ordinary words to match safely on their own.
+function findSize(text: string): string | undefined {
+  const m = /\bsize[s]?\s+(extra small|extra large|xxl|xs|xl|small|medium|large|[sml])\b/i.exec(text.toLowerCase());
+  return m ? SIZE_ALIASES[m[1]!] : undefined;
 }
 
 const OCCASIONS = [
@@ -180,8 +201,10 @@ const CLARIFY = {
   noPreview: "I don't have a look on screen yet to save — ask me to show you something first.",
   notEnoughSaved: "You need at least two saved looks before I can compare them — save another one first.",
   noReactionTarget: "I don't have a saved look to react to yet — save one first.",
+  noOrderTarget: "I don't have a saved look to order yet — save one first.",
+  noSize: "What size should I order it in — small, medium, large, extra small, or extra large?",
   unrecognized:
-    "I'm using the offline demo reasoner right now, so I only understand a few things: asking about an occasion and budget, \"show me the first/second/another one\", \"save that\", \"compare them\", or how you felt about a look — like \"go with the magenta one\" or \"I don't like that one\".",
+    "I'm using the offline demo reasoner right now, so I only understand a few things: asking about an occasion and budget, \"show me the first/second/another one\", \"save that\", \"compare them\", how you felt about a look — like \"go with the magenta one\" or \"I don't like that one\" — or \"place the order in size M\".",
 };
 
 /**
@@ -230,6 +253,14 @@ export function reason(messages: ConvMessage[], _tools: unknown[]): ReasonResult
     const lookId = findReactionTarget(low, ctx);
     if (!lookId) return textMessage(CLARIFY.noReactionTarget);
     return toolUseMessage("record_reaction", { lookId, reaction: "reject" });
+  }
+
+  if (/\b(place (the|my) order|order (it|that|this)|buy (it|that|this)|check\s?out|complete the purchase)\b/.test(low)) {
+    const lookId = findReactionTarget(low, ctx);
+    if (!lookId) return textMessage(CLARIFY.noOrderTarget);
+    const size = findSize(low);
+    if (!size) return textMessage(CLARIFY.noSize);
+    return toolUseMessage("place_order", { lookId, size });
   }
 
   const idx = findOptionIndex(low, ctx);

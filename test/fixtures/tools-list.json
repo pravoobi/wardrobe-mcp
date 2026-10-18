@@ -39,6 +39,16 @@
     }
   },
   {
+    "name": "place_order",
+    "inputSchema": [
+      "lookId",
+      "size"
+    ],
+    "annotations": {
+      "title": "place_order"
+    }
+  },
+  {
     "name": "plan_week",
     "inputSchema": [
       "events"

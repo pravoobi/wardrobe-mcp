@@ -64,7 +64,7 @@ async function main(): Promise<void> {
   console.log(`✓ negotiated protocol ${negotiated}`);
 
   const { tools } = await client.listTools();
-  assert(tools.length === 10, `expected 10 tools, got ${tools.length}`);
+  assert(tools.length === 11, `expected 11 tools, got ${tools.length}`);
   console.log(`✓ tools/list -> ${tools.length} tools`);
 
   const timed = async (name: string, args: Record<string, unknown>) => {

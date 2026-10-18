@@ -46,7 +46,7 @@ describe("bearer auth on /mcp", () => {
     const res = await post({ authorization: "Bearer dev_praveen" });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { result?: { tools: unknown[] } };
-    expect(body.result?.tools?.length).toBe(10);
+    expect(body.result?.tools?.length).toBe(11);
   });
 });
 
